@@ -47,7 +47,19 @@ function table(options, ...items) {
   if (options.newLine) process.stdout.write('\n');
 }
 
-function exec(exe, asm) {
+async function readKey() {
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  return new Promise(resolve => process.stdin.once('data', data => {
+    process.stdin.setRawMode(false);
+    process.stdin.pause();
+    const key = data.toString();
+    if (key === '\x03') process.exit();
+    resolve(key);
+  }));
+}
+
+async function exec(exe, asm) {
   const il = exe.length / 3;
   const registers = [0, '', '', ...new Array(43).fill(0)];
 
@@ -56,6 +68,20 @@ function exec(exe, asm) {
     const [opcode, a, b] = exe.slice(mip, mip + 3);
     const IP = registers[0];
 
+    write(`|${chalk.bgYellow.black(hex(registers[0]))}   | `);
+    write(
+      `${chalk.bgGreen.black(hex(opcode))} `
+    );
+    write(
+      chalk.yellow(opcodes[opcode].name.padEnd(4, ' ')) + ' ' +
+      chalk.magenta((a ?? '0').padEnd(3, ' ')) + ' ' +
+      chalk.magenta((b ?? '0').padEnd(3, ' ')) + '\n'
+    );
+
+    const key = await readKey();
+
+    write('\x1B[1A\x1B[1000D');
+
     write(`|${chalk.bgBlue.black(hex(registers[0]))}   | `);
     write(
       `${chalk.bgGreen.black(hex(opcode))} `
@@ -63,7 +89,7 @@ function exec(exe, asm) {
     write(
       chalk.yellow(opcodes[opcode].name.padEnd(4, ' ')) + ' ' +
       chalk.magenta((a ?? '0').padEnd(3, ' ')) + ' ' +
-      chalk.magenta((b ?? '0').padEnd(3, ' '))
+      chalk.magenta((b ?? '0').padEnd(3, ' ')) + ' '
     );
 
     const before = registers.slice(3);
@@ -72,15 +98,17 @@ function exec(exe, asm) {
     registers[2] = b;
     opcodes[opcode](registers);
 
-    const after = registers.slice(3).map((x,i) => [`R${i.toString().padStart(2,0)}: ${x}`,x]).filter((x, i) => x[1] !== before[i])
-      .map(x => x[0]);
+    const after = registers.slice(3)
+      .map((x,i) => [`R${i.toString().padStart(2,0)}: ${x}`,x,i])
+      .filter((x, i) => x[1] !== before[i])
+      .map(x => `R${x[2].toString().padStart(2,0)}:${before[x[2]]} -> ${x[0]}`);
 
     console.log(
       after.join(' ')
     )
 
     if (IP === registers[0]) registers[0]++;
-    else console.log(`|${chalk.bgGray.black('JUMP \u21A9')}|`);
+    else console.log(`|${chalk.bgGray.black('JUMP \u21A9')}|${chalk.bgGray.black('\u21A9 '.repeat(15))}`);
   }
   console.log('-'.repeat(25));
   const returnValue = hex(registers[R_OFF + 42]);
@@ -109,8 +137,18 @@ const asm = [
   "JMP 3",
   "MOV R01,R42"
 ]
-
+console.log('Assembling Program...');
+console.log('This may take a few seconds...');
 const exe = assemble(asm);
+
+console.log('Machine Code:');
+
+console.log(
+  exe.map(x => typeof x === 'number' ? hex(x) : x)
+    .join(' ')
+)
+
+console.log('\nAttached Debugger', '\n')
 
 // debug mode
 exec(exe, asm);
