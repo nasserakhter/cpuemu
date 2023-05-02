@@ -13,40 +13,37 @@ import fs from 'fs';
 
 function preproccess(asm) {
   let lines = asm
-    .replace(/\s*;[^\n]*$/gm, '')
+    .replace(/\s*;[^\n]*$/gm, '') // comments
     .trim()
     .split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 0);
 
-  // replace labels with addresses
-  const JMP_REGEX = /JMP\s[a-zA-Z\_]+/gm;
+  // find all labels
+  const labels = {};
 
-  const labels = lines
-    .filter(x => x.match(JMP_REGEX))
-    .map(x => x.slice(4).trim())
-    .map((x,i) => [x, i]);
-
-  const foundLabels = {};
-  
-  labels.forEach(jmp => {
-    // for each jmp we want to find the label, delete it, and replace it with the address
-    if (foundLabels[jmp[0]]) {
-      const address = foundLabels[jmp[0]];
-      lines[jmp[1]] = `JMP ${address}`;
-    } else {
-      const labelIndex = lines.findIndex(x => x === (jmp[0] + ":"));
-      if (labelIndex > -1) {
-        foundLabels[jmp[0]] = labelIndex;
-        lines[labelIndex] = `${jmp[0]}: ${labelIndex + 1}`;
-        lines = lines.filter((_,i) => i !== labelIndex); // remove the label
-      } else {
-        throw new Error(`Label not found: ${jmp[0]}`);
-      }
+  lines = lines.filter((line, i) => {
+    if (line.match(/^[a-zA-Z\_]+\:$/gm)) {
+      labels[line.slice(0, -1)] = i;
+      return false;
     }
+    return true;
   });
 
-  return lines.filter(x => !x.match(/[a-zA-Z\_]\:/gm));
+  lines = lines.map((x,i) => {
+      if (x.match(/\s[a-zA-Z\_]+$/g)) {
+        const [jmp, label] = x.split(' ');
+        if (labels[label]) {
+          return `${jmp} ${labels[label]}`;
+        } else {
+          throw new Error(`Invalid label: ${label}`);
+        }
+      } else {
+        return x;
+      }
+    })
+
+  return lines;
 }
 
 function assemble(asm) {
@@ -61,8 +58,9 @@ function assemble(asm) {
   let offset = MAGIC_SIZE;
 
   asm.forEach(i => {
-    const [asmOpcode, operands] = i.split(' ');
-    const [_a, _b] = operands?.split(',') ?? [null, null];
+    const asmOpcode = i.slice(0, i.indexOf(' ') >>> 0);
+    const operands = i.slice(asmOpcode.length + 1);
+    const [_a, _b] = operands?.split(', ') ?? [null, null];
     const a = _a?.trim() ?? '';
     const b = _b?.trim() ?? '';
 
