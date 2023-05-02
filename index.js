@@ -1,154 +1,166 @@
-import chalk from 'chalk';
+import {
+  exec,
+  opcodesKeys,
+  MAGIC,
+  REF_SIZE,
+  ARG_SIZE,
+  MAGIC_SIZE,
+  OPCODE_SIZE,
+  INSTRUCTION_SIZE,
+} from './cpu.js';
 
-const MAX_32_BIT = 2 ** 32;
-const R_OFF = 3;
+import fs from 'fs';
 
-const refArg1 = (registers) => +registers[1].slice(1) + R_OFF;
-const refArg2 = (registers) => +registers[2].slice(1) + R_OFF;
-const derefArg1 = (registers) => registers[1][0] === "R" ? registers[refArg1(registers)] : +registers[1];
-const derefArg2 = (registers) => registers[2][0] === "R" ? registers[refArg2(registers)] : +registers[2];
+function preproccess(asm) {
+  let lines = asm
+    .replace(/\s*;[^\n]*$/gm, '')
+    .trim()
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
 
-const MOV = (registers) => registers[refArg2(registers)] = derefArg1(registers);
-const ADD = (registers) => registers[refArg1(registers)] = (derefArg1(registers) + derefArg2(registers)) % MAX_32_BIT;
-const DEC = (registers) => {
-  const k = derefArg1(registers);
-  registers[refArg1(registers)] = k <= 0 ? MAX_32_BIT - 1 : k - 1;
-}
-const INC = (registers) => {
-  const k = derefArg1(registers);
-  registers[refArg1(registers)] = k >= MAX_32_BIT - 1 ? 0 : k + 1;
-}
-const INV = (registers) => registers[refArg1(registers)] = ~derefArg1(registers) >>> 0;
-const JMP = (registers) => registers[0] = derefArg1(registers) - 1;
-const JZ = (registers) => registers[R_OFF] === 0 && (registers[0] = derefArg1(registers) - 1);
+  // replace labels with addresses
+  const JMP_REGEX = /JMP\s[a-zA-Z\_]+/gm;
 
-const opcodes = [MOV, ADD, DEC, INC, INV, JMP, JZ];
-const opcodesKeys = opcodes.map(x => x.name).reduce((a, c, i) => (a[c] = i, a), {});
+  const labels = lines
+    .filter(x => x.match(JMP_REGEX))
+    .map(x => x.slice(4).trim())
+    .map((x,i) => [x, i]);
 
-function hex(num = 0) {
-  return `0x${num.toString(16).toUpperCase()}`;
-}
+  const foundLabels = {};
+  
+  labels.forEach(jmp => {
+    // for each jmp we want to find the label, delete it, and replace it with the address
+    if (foundLabels[jmp[0]]) {
+      const address = foundLabels[jmp[0]];
+      lines[jmp[1]] = `JMP ${address}`;
+    } else {
+      const labelIndex = lines.findIndex(x => x === (jmp[0] + ":"));
+      if (labelIndex > -1) {
+        foundLabels[jmp[0]] = labelIndex;
+        lines[labelIndex] = `${jmp[0]}: ${labelIndex + 1}`;
+        lines = lines.filter((_,i) => i !== labelIndex); // remove the label
+      } else {
+        throw new Error(`Label not found: ${jmp[0]}`);
+      }
+    }
+  });
 
-function realLength(str) {
-  return str.replace(/\x1B\[[0-9;]*?m(?:DA)*/g, "").length;
-}
-
-function write(text) {
-  process.stdout.write(text);
-}
-
-function table(options, ...items) {
-  options.min = options.min ?? 1;
-  const spacing = Math.max(...items.map(x => realLength(x))) + options.min;
-  let buffer = "";
-  console.log(spacing);
-  items.forEach(x => buffer += x + ' '.repeat(spacing - realLength(x)));
-  process.stdout.write(buffer);
-  if (options.newLine) process.stdout.write('\n');
-}
-
-async function readKey() {
-  process.stdin.setRawMode(true);
-  process.stdin.resume();
-  return new Promise(resolve => process.stdin.once('data', data => {
-    process.stdin.setRawMode(false);
-    process.stdin.pause();
-    const key = data.toString();
-    if (key === '\x03') process.exit();
-    resolve(key);
-  }));
-}
-
-async function exec(exe, asm) {
-  const il = exe.length / 3;
-  const registers = [0, '', '', ...new Array(43).fill(0)];
-
-  while (registers[0] < il) {
-    const mip = registers[0] * 3;
-    const [opcode, a, b] = exe.slice(mip, mip + 3);
-    const IP = registers[0];
-
-    write(`|${chalk.bgYellow.black(hex(registers[0]))}   | `);
-    write(
-      `${chalk.bgGreen.black(hex(opcode))} `
-    );
-    write(
-      chalk.yellow(opcodes[opcode].name.padEnd(4, ' ')) + ' ' +
-      chalk.magenta((a ?? '0').padEnd(3, ' ')) + ' ' +
-      chalk.magenta((b ?? '0').padEnd(3, ' ')) + '\n'
-    );
-
-    const key = await readKey();
-
-    write('\x1B[1A\x1B[1000D');
-
-    write(`|${chalk.bgBlue.black(hex(registers[0]))}   | `);
-    write(
-      `${chalk.bgGreen.black(hex(opcode))} `
-    );
-    write(
-      chalk.yellow(opcodes[opcode].name.padEnd(4, ' ')) + ' ' +
-      chalk.magenta((a ?? '0').padEnd(3, ' ')) + ' ' +
-      chalk.magenta((b ?? '0').padEnd(3, ' ')) + ' '
-    );
-
-    const before = registers.slice(3);
-
-    registers[1] = a;
-    registers[2] = b;
-    opcodes[opcode](registers);
-
-    const after = registers.slice(3)
-      .map((x,i) => [`R${i.toString().padStart(2,0)}: ${x}`,x,i])
-      .filter((x, i) => x[1] !== before[i])
-      .map(x => `R${x[2].toString().padStart(2,0)}:${before[x[2]]} -> ${x[0]}`);
-
-    console.log(
-      after.join(' ')
-    )
-
-    if (IP === registers[0]) registers[0]++;
-    else console.log(`|${chalk.bgGray.black('JUMP \u21A9')}|${chalk.bgGray.black('\u21A9 '.repeat(15))}`);
-  }
-  console.log('-'.repeat(25));
-  const returnValue = hex(registers[R_OFF + 42]);
-  console.log(`${chalk.bgRed("RETURN:")} ${chalk.red(returnValue)}`);
+  return lines.filter(x => !x.match(/[a-zA-Z\_]\:/gm));
 }
 
 function assemble(asm) {
-  const exe = [];
+  asm = preproccess(asm);
+  const _exe = [];
+
+  const exeSize = INSTRUCTION_SIZE * asm.length;
+
+  const exe = Buffer.alloc(MAGIC_SIZE + exeSize);
+
+  exe.write(MAGIC, 0);
+  let offset = MAGIC_SIZE;
+
   asm.forEach(i => {
     const [asmOpcode, operands] = i.split(' ');
-    const [a, b] = operands?.split(',') ?? [0, 0];
+    const [_a, _b] = operands?.split(',') ?? [null, null];
+    const a = _a?.trim() ?? '';
+    const b = _b?.trim() ?? '';
+
     if (asmOpcode === 'NOP') return;
     const opcode = opcodesKeys[asmOpcode];
-    exe.push(opcode);
-    exe.push(a, b);
+    if (isNaN(opcode)) throw new Error(`Invalid opcode: ${asmOpcode}`);
+    exe.writeUint8(opcode, offset);
+    offset += OPCODE_SIZE;
+
+    if (a[0] === 'R') {
+      exe.writeUint8(0xFF, offset);
+      offset += REF_SIZE;
+
+      exe.writeUint32LE(+a.slice(1), offset);
+      offset += ARG_SIZE;
+    } else {
+      exe.writeUint8(0x00, offset);
+      offset += REF_SIZE;
+
+      exe.writeUint32LE(+a, offset);
+      offset += ARG_SIZE;
+    }
+
+    if (b[0] === 'R') {
+      exe.writeUint8(0xFF, offset);
+      offset += REF_SIZE;
+
+      exe.writeUint32LE(+b.slice(1), offset);
+      offset += ARG_SIZE;
+    } else {
+      exe.writeUint8(0x00, offset);
+      offset += REF_SIZE;
+
+      exe.writeUint32LE(+b, offset);
+      offset += ARG_SIZE;
+    }
   });
   return exe;
 }
 
-const asm = [
-  "MOV 10,R00",
-  "MOV 0,R01",
-  "JZ 7",
-  "DEC R00",
-  "INC R01",
-  "JMP 3",
-  "MOV R01,R42"
-]
-console.log('Assembling Program...');
-console.log('This may take a few seconds...');
+function logBuffer(buf) {
+  let maxWidth = 16;
+  let breakEvery = 8;
+  let width = 0;
+  process.stdout.write('0'.repeat(8) + ' ');
+  buf.forEach((byte, i) => {
+    process.stdout.write(byte.toString(16).padStart(2, 0) + ' ');
+    width++;
+    if (width >= maxWidth) {
+      process.stdout.write(` |${buf.slice(i - width + 1, i + 1).toString('utf8').replace(/[^\x20-\x7E]/g, '.')}|\n`);
+      if (i < buf.length - 1) {
+        process.stdout.write(i.toString(16).padStart(8, 0) + ' ');
+      }
+      width = 0;
+    } else if (width % breakEvery === 0) {
+      process.stdout.write(' ');
+    }
+  });
+  process.stdout.write('\n');
+}
+
+const asm = fs.readFileSync('./program.asm', 'utf8');
+
+if (asm.length === 0) {
+  console.log('Invalid assembly');
+  process.exit(1);
+}
+
+const debug = !!process.argv.find(i => i === '--debug');
+const step = !!process.argv.find(i => i === '--step');
+
+if (debug) {
+  console.log('Assembling Program...');
+  console.log('This may take a few seconds...');
+}
+
 const exe = assemble(asm);
 
-console.log('Machine Code:');
+if (debug) {
+  console.log('Machine Code:');
 
-console.log(
-  exe.map(x => typeof x === 'number' ? hex(x) : x)
-    .join(' ')
-)
+  logBuffer(exe);
+  console.log('\nAttached Debugger', '\n')
+}
 
-console.log('\nAttached Debugger', '\n')
 
+if (!debug) {
+  performance.mark('start');
+}
 // debug mode
-exec(exe, asm);
+exec(exe, {
+  debug,
+  step
+});
+
+if (!debug) {
+  performance.mark('end');
+  performance.measure('Execution Time', 'start', 'end');
+  const measure = performance.getEntriesByName('Execution Time')[0];
+  console.log(`${measure.duration.toFixed(4)}ms`);
+}
