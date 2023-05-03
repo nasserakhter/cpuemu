@@ -1,8 +1,10 @@
 import chalk from 'chalk';
 import { opcodes } from './opcodes.js';
-import { hex, protectedMemCheck, readKey, write } from './utils.js';
+import { hasCliFlag, hex, protectedMemCheck, readKey, write } from './utils.js';
 import {
   ARG_SIZE,
+  CHIPSET_SIZE,
+  FLAGS,
   INSTRUCTION_SIZE,
   MAGIC,
   MAGIC_SIZE,
@@ -16,24 +18,55 @@ import {
 } from './constants.js';
 
 import './bus.js';
+import { chipset } from './chipset.js';
 
 // registers and memory
-globalThis.registers = Buffer.alloc(0);
+globalThis.registers = [];
 globalThis.instructionFlags = 0;
 
-export async function exec(aex, options) {
-  const debug = options.debug ?? false;
-  const step = options.step ?? false;
+if (hasCliFlag('unprotect-memory')) {
+  instructionFlags |= FLAGS.PROTECTED_MEMORY;
+}
 
+export async function exec(aex, options) {
   if (aex.slice(0, MAGIC_SIZE).toString() !== MAGIC) throw new Error("Invalid executable");
   aex = aex.slice(MAGIC_SIZE);
 
   // setup CPU internals
   registers = [0, '', '', ...new Array(REGISTERS_COUNT + 1).fill(0)];
-  busBuffers.push(new Array(TOTAL_MEMORY_SIZE + 1).fill(0));
+  // attach RAM into the first part of the bus.a
+  attachBusDevice(
+    new Array(TOTAL_MEMORY_SIZE + 1).fill(0),
+    0, TOTAL_MEMORY_SIZE - 1,
+    {
+      print: false,
+      name: 'RAM',
+      protected: true
+    }
+  );
 
-  registers = Buffer.alloc(4 + REGISTERS_COUNT);
-  registers.write
+  if (hasCliFlag('chipset')) {
+    // import code segment into the bus
+    const systemBuf = Buffer.alloc(CHIPSET_SIZE);
+    const chipsetLoc = getOpenRange(systemBuf.length)
+
+    attachBusDevice(systemBuf, ...chipsetLoc, {
+      print: false,
+      name: 'SYSTEM',
+      protected: true
+    });
+
+    chipset(...chipsetLoc);
+  }
+
+  const [codeSegStart, codeSegEnd] = getOpenRange(aex.length);
+
+  attachBusDevice(aex, codeSegStart, codeSegEnd, {
+    name: 'BINARY',
+    protected: true
+  });
+
+  registers = new Array(4 + REGISTERS_COUNT).fill(0);
 
   const il = aex.length / INSTRUCTION_SIZE;
 
@@ -79,7 +112,7 @@ export async function exec(aex, options) {
       write(`|${chalk.bgBlue.black(hex(registers[0]))}   | `);
       write(`${chalk.bgGreen.black(hex(opcode))} `);
       write(
-        chalk.yellow(opcodes[opcode].name.padEnd(4, ' ')) + ' ' +
+        chalk.yellow(opcodes[opcode]?.name.padEnd(4, ' ')) + ' ' +
         chalk.magenta((a ?? '0').padEnd(3, ' ')) + ' ' +
         chalk.magenta((b ?? '0').padEnd(3, ' ')) + ' '
       );
@@ -87,6 +120,7 @@ export async function exec(aex, options) {
 
     registers[1] = a;
     registers[2] = b;
+    if (!opcodes[opcode]) throw new Error(`Invalid opcode`);
     opcodes[opcode](registers);
 
     if (debug) {

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { exec } from './cpu.js';
+import { hasCliFlag } from './utils.js';
 import { opcodesKeys } from './opcodes.js';
 
 import {
@@ -68,11 +69,14 @@ function assemble(asm, debug) {
   asm.forEach(i => {
     const asmOpcode = i.slice(0, i.indexOf(' ') >>> 0);
     const operands = i.slice(asmOpcode.length + 1);
+    if (operands?.indexOf(',') !== operands?.indexOf(', ')) {
+      throw new Error(`Invalid syntax, space after comma is required: ${i}`);
+    }
     const [_a, _b] = operands?.split(', ') ?? [null, null];
     let a = _a?.trim() ?? '';
     let b = _b?.trim() ?? '';
 
-    if (asmOpcode === 'NOP') return;
+    //if (asmOpcode === 'NOP') return;
     const opcode = opcodesKeys[asmOpcode];
     if (isNaN(opcode)) throw new Error(`Invalid opcode: ${asmOpcode}`);
     aex.writeUint8(opcode, offset);
@@ -117,10 +121,24 @@ function assemble(asm, debug) {
 }
 
 function logBuffer(buf) {
-  let maxWidth = 16;
-  let breakEvery = 8;
+  let maxWidth = 11;
+  let breakEvery = [];
+
+  const psh = (x) => breakEvery
+    .push((breakEvery[breakEvery.length - 1] ?? 0) + x);
+
+  psh(OPCODE_SIZE);
+  psh(REF_SIZE);
+  psh(ARG_SIZE);
+  psh(REF_SIZE);
+  psh(ARG_SIZE);
+
   let width = 0;
   process.stdout.write('0'.repeat(8) + ' ');
+  // get rid of magic
+  buf = buf.slice(MAGIC_SIZE);
+
+  let lastBroke = 0;
   buf.forEach((byte, i) => {
     process.stdout.write(byte.toString(16).padStart(2, 0) + ' ');
     width++;
@@ -130,8 +148,10 @@ function logBuffer(buf) {
         process.stdout.write(i.toString(16).padStart(8, 0) + ' ');
       }
       width = 0;
-    } else if (width % breakEvery === 0) {
+      lastBroke = 0;
+    } else if (width % breakEvery[lastBroke] === 0) {
       process.stdout.write(' ');
+      lastBroke = (lastBroke + 1) % breakEvery.length;
     }
   });
   process.stdout.write('\n');
@@ -145,9 +165,9 @@ export async function assembleAndRun() {
     process.exit(1);
   }
 
-  const debug = !!process.argv.find(i => i === '--debug');
-  const step = !!process.argv.find(i => i === '--step');
-  const compile = !!process.argv.find(i => i === '--compile');
+  globalThis.debug = hasCliFlag('debug');
+  globalThis.step = hasCliFlag('step');
+  globalThis.compile = hasCliFlag('compile');
 
 
   if (debug) {
@@ -167,7 +187,11 @@ export async function assembleAndRun() {
     console.log('Machine Code:');
 
     logBuffer(aex);
-    console.log('\nAttached Debugger', '\n')
+    console.log('\nAttached Debugger')
+
+    if (step) {
+      console.log('[DEBUGGER PAUSED] Press enter to step by instruction');
+    }
   }
 
 
@@ -175,10 +199,7 @@ export async function assembleAndRun() {
     performance.mark('start');
   }
   // debug mode
-  await exec(aex, {
-    debug,
-    step
-  });
+  await exec(aex);
 
   if (!debug) {
     performance.mark('end');

@@ -1,3 +1,2 @@
 main:
-  MOV [0xA], 15
-  MOV R24, [0xA]
+  MOV [20], 1

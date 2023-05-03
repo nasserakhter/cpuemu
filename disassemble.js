@@ -1,6 +1,6 @@
 import fs from 'fs';
-import { ARG_SIZE, MAGIC, OPCODE_SIZE, REFS } from './cpu.js';
-import { REF_SIZE, opcodes } from './cpu.js';
+import { ARG_SIZE, MAGIC, OPCODE_SIZE, REFS, REF_SIZE } from './constants.js';
+import { opcodes } from './opcodes.js';
 
 const path = process.argv[2];
 

@@ -1,9 +1,15 @@
 import { MAX_32_BIT } from "./constants.js";
 import crypto from 'crypto';
+import { write } from "./utils.js";
+import chalk from "chalk";
 
 const ranges = {
   //'uuid': [0, 16], // virtual address 0 -> 16
 }
+
+globalThis.busProtectedRanges = {
+  //'uuid'  
+};
 
 const busDevices = {
   //'uuid': [],
@@ -22,18 +28,47 @@ const getOpenRange = (size) => {
     start = currRange[1];
   }
   if (MAX_32_BIT - start >= size) {
-    return [start, start + size];
+    return [
+      start === 0 ? 0 : start + 1,
+      start + size// start === 0 ? start + size : start + size + 1
+    ];
   }
   throw new Error('Address bounds exceeded, could not attach bus device');
 
 }
 
-const attachBusDevice = (array, start, end) => {
-  if (start >= end) throw new Error('Invalid arguments, could not attach bus device');
-  const id = crypto.randomUUID();
-  const arr = [...array];
+const attachBusDevice = (array, start, end, options) => {
+  const print = options?.print ?? true;
+  const name = options?.name ?? null;
+  const isProtected = options?.protected ?? false;
+
+  if (start > end) throw new Error('Invalid arguments, could not attach bus device');
+  const id = crypto.randomUUID() + (name ? `#${name}` : '');
+  //const arr = [...array];
+  const arr = array;
   ranges[id] = [start, end];
   busDevices[id] = arr;
+  if (isProtected) {
+    busProtectedRanges[id] = [start, end];
+  }
+
+  if (print && debug) {
+    console.log();
+    console.log('Attached new bus device');
+    Object.entries(ranges).forEach(([id, [start, end]]) => {
+      const nameI = id.indexOf('#');
+      write(chalk.bgGreen.black(` ${start} -> ${end}`.padEnd(15, ' ')));
+      write(': ');
+      const isEntryProtected = !!busProtectedRanges[id];
+      const chalkFun = isEntryProtected ? chalk.bgRed.black : chalk.bgYellow.black;
+      write(chalkFun.black(id.slice(0, 8)));
+      if (nameI > -1) {
+        write(chalk.bgGray.yellow(` ${id.slice(nameI + 1)} `));
+      }
+      console.log();
+    });
+    console.log();
+  }
   return id;
 }
 
@@ -42,30 +77,37 @@ globalThis.attachBusDevice = attachBusDevice;
 
 const handler = {
   get: function (target, prop, receiver) {
+    if (prop === 'length') return MAX_32_BIT;
+    const index = Number(prop);
+
     if (isNaN(index) || index < 0 || index >= MAX_32_BIT) {
-      throw new Error('Segmentation fault (core not dumped)');
+      throw new Error('Segmentation fault (read, core not dumped)');
     }
 
-    const [llDevice, [llDeviceStart, llDeviceEnd]] = Object.entries(ranges).find(([,[start, end]]) => index >= start && index < end);
+    const llDevice = Object.entries(ranges)
+      .find(([, [start, end]]) => index >= start && index <= end);
 
     if (llDevice) {
-      return busDevices[llDevice][index - llDeviceStart];
+      return busDevices[llDevice[0]][index - llDevice[1][0]] ?? 0;
     } else {
+      console.log('Warning: read from unmapped memory region, the MMU will return 0 but this is likely a bug in your code.')
       return 0x00; // for unmapped memory, return 0x00
     }
   },
   set: function (target, prop, value, receiver) {
     const index = Number(prop);
     if (isNaN(index) || index < 0 || index >= MAX_32_BIT) {
-      throw new Error('Segmentation fault (core dumped)');
+      throw new Error('Segmentation fault (write, core not dumped)');
     }
 
-    const [llDevice, [llDeviceStart, llDeviceEnd]] = Object.entries(ranges).find(([,[start, end]]) => index >= start && index < end);
+    const llDevice = Object.entries(ranges)
+      .find(([, [start, end]]) => index >= start && index <= end);
 
     if (llDevice) {
-      busDevices[llDevice][index - llDeviceStart] = value;
+      busDevices[llDevice[0]][index - llDevice[1][0]] = value;
+      return true;
     } else {
-      throw new Error('Segmentation fault (core dumped)');
+      throw new Error('Access violation, unmapped memory region');
     }
   },
   getOwnPropertyDescriptor: function (target, prop) {
@@ -81,4 +123,3 @@ const handler = {
 };
 
 globalThis.bus = new Proxy([], handler);
-bus.length = MAX_32_BIT;

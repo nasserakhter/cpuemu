@@ -6,7 +6,9 @@ const setAtArg = (arg, value) => {
     registers[rI] = value;
   } else if (registers[arg][0] === "@") {
     const mI = +registers[arg].slice(1);
-    memory[mI] = value;
+    bus[mI] = value;
+  } else {
+    throw new Error(`Invalid operand, unexpected integer literal`);
   }
 }
 
@@ -18,7 +20,7 @@ const getAtArg = (arg) => {
     return regVal;
   } else if (registers[arg][0] === "@") {
     const mI = +registers[arg].slice(1);
-    return memory[mI];
+    return bus[mI];
   } else {
     return +registers[arg];
   }
@@ -52,6 +54,7 @@ const INV = () => setAtArg1(~getAtArg1() >>> 0);
 const JMP = () => registers[0] = getAtArg1() - 1;
 const INT = () => registers[0]
 const JZ = () => registers[R_OFF] === 0 && (registers[0] = getAtArg1() - 1);
+const NOP = () => { };
 
-export const opcodes = [MOV, ADD, SUB, MUL, DIV, MOD, DEC, INC, INV, JMP, JZ];
+export const opcodes = [MOV, ADD, SUB, MUL, DIV, MOD, DEC, INC, INV, JMP, JZ, NOP];
 export const opcodesKeys = opcodes.map(x => x.name).reduce((a, c, i) => (a[c] = i, a), {});
