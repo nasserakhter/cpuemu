@@ -1,9 +1,16 @@
 {
+  "## General Stuffs":"",
+  "error-traces": true,
+  "## Bus Devices":"",
   "ram": true,
   "bios": true,
   "debug": true,
-  "drivers": true,
   "chipset": true,
   "interrupts": true,
-  "unprotect-memory": true
+  "unprotect-memory": false,
+  "## Drivers Stuffs":"",
+  "drivers": true,
+  "step-drivers": false,
+  "debug-drivers": true,
+  "print-return-drivers": true
 }

@@ -11,9 +11,11 @@ export const OPCODE_SIZE = 1; // 1 byte
 export const REF_SIZE = 1; // 1 byte
 export const REFS = {
   IMMEDIATE: 1,
-  IMMEDIATE_NEGATIVE: 2,
-  REGISTER: 3,
-  ADDRESS: 4,
+  // relative is basically for jumps
+  RELATIVE: 2,
+  RELATIVE_NEGATIVE: 3,
+  REGISTER: 4,
+  ADDRESS: 5,
 }
 export const ARG_SIZE = 4; // each arg is 4 bytes + 1 byte for ref/deref
 export const INSTRUCTION_SIZE = OPCODE_SIZE + (2 * (REF_SIZE + ARG_SIZE));
@@ -24,13 +26,17 @@ export const INSTRUCTION_SIZE = OPCODE_SIZE + (2 * (REF_SIZE + ARG_SIZE));
 */
 
 // registers
+// internal registers:
+// 0: Instruction Pointer
+// 1: Operand A
+// 2: Operand B
 export const R_OFF = 3;
 export const REGISTERS_COUNT = 6;
 export const RETURN_REGISTER = 6;
 
 // interrupts
 export const INTERRUPT_MAX = 2; // maximum number of interrupts
-export const INTERRUPT_SIZE = 2; // 2 bytes per interrupt, 1 for the interrupt number, 1 for the address
+export const INTERRUPT_SIZE = 1; // 2 bytes per interrupt, 1 for the interrupt number, 1 for the address
 export const INTERRUPT_TABLE_OFFSET = 0x0;
 export const INTERRUPT_TABLE_SIZE = INTERRUPT_MAX * INTERRUPT_SIZE;
 

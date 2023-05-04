@@ -27,7 +27,8 @@ function preproccess(asm) {
     if (x.match(/\s[a-zA-Z\_]+$/g)) {
       const [jmp, label] = x.split(' ');
       if (labels[label]) {
-        return `${jmp} ${labels[label] - i - 1}`;
+        const num = labels[label] - i - 1;
+        return `${jmp} ${num > 0 ? '+' : ''}${num}`;
       } else {
         throw new Error(`Invalid label: ${label}`);
       }
@@ -86,8 +87,11 @@ export function assemble(asm, print = true) {
     } else if (a[0] === '[' && a[a.length - 1] === ']') {
       aex.writeUint8(REFS.ADDRESS, offset);
       a = a.slice(1, -1);
+    } else if (a[0] === '+') {
+      aex.writeUint8(REFS.RELATIVE, offset);
+      a = a.slice(1);
     } else if (a[0] === '-') {
-      aex.writeUint8(REFS.IMMEDIATE_NEGATIVE, offset);
+      aex.writeUint8(REFS.RELATIVE_NEGATIVE, offset);
       a = a.slice(1);
     } else {
       aex.writeUint8(REFS.IMMEDIATE, offset);
@@ -106,7 +110,10 @@ export function assemble(asm, print = true) {
       aex.writeUint8(REFS.ADDRESS, offset);
       b = b.slice(1, -1);
     } else if (b[0] === '-') {
-      aex.writeUint8(REFS.IMMEDIATE_NEGATIVE, offset);
+      aex.writeUint8(REFS.RELATIVE, offset);
+      b = b.slice(1);
+    } else if (b[0] === '-') {
+      aex.writeUint8(REFS.RELATIVE_NEGATIVE, offset);
       b = b.slice(1);
     } else {
       aex.writeUint8(REFS.IMMEDIATE, offset);

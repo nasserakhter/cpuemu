@@ -5,4 +5,5 @@ loop:
   DEC R0
   JMP loop
 end:
+  INT 0
   NOP

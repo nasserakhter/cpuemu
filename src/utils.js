@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { opcodes, opcodesKeys } from './opcodes.js';
 import { assemble } from './assemble.js';
 import { exec } from '../devices/cpu.js';
+import path from 'path';
 
 let configJson = {};
 
@@ -12,8 +13,9 @@ if (fs.existsSync('./config.json')) {
 }
 
 export function protectedMemCheck(a) {
-  if (instructionFlags & FLAGS.PROTECTED_MEMORY) return;
-
+  if (instructionFlags & FLAGS.PROTECTED_MEMORY || a[0] !== "@") return;
+  a = +a.slice(1);
+  
   Object.values(busProtectedRanges).forEach(([start, end]) => {
     if (a >= start && a <= end) {
       throw new Error(
@@ -64,9 +66,10 @@ export function loadBinary(aex, type = 'BINARY') {
 export async function loadDrivers(files) {
   // run each function in sequence
   for (const file of files) {
-    console.log("Loading driver: " + file);
+    const name = path.parse(file).name;
+    console.log("Loading driver: " + name);
     const binary = fs.readFileSync(file);
-    const [codeSegStart] = loadBinary(binary, 'DRIVER');
+    const [codeSegStart] = loadBinary(binary, name.toLocaleUpperCase() + ' DRIVER');
     registers[0] = codeSegStart;
     await exec();
   }
@@ -97,13 +100,11 @@ export async function startupChecks() {
 }
 
 export async function refTransform(a, aRef) {
-  if (aRef === REFS.IMMEDIATE_NEGATIVE) a = `-${a}`;
+  if (aRef === REFS.RELATIVE) a = `+${a}`;
+  if (aRef === REFS.RELATIVE_NEGATIVE) a = `-${a}`;
   if (aRef === REFS.REGISTER) a = `R${a}`;
-  if (aRef === REFS.ADDRESS) {
-    protectedMemCheck(a);
-    a = `@${a}`;
-  }
-  return a;
+  if (aRef === REFS.ADDRESS) a = `@${a}`;
+  return a.toString();
 }
 
 
@@ -165,19 +166,21 @@ export async function diffSnapshot(a, b, snapshotA, snapshotB) {
       write(chalk.green(`@${(+b.slice(1))}: ${snapshotA.bus.b} -> ${snapshotB.bus.b}`));
     }
 
+    console.log();
   }
-  console.log();
 }
 
 export async function printInstructions(a, b, opcode) {
-  write(`|${chalk.bgBlue.black(hex(registers[0]))}   | `);
+  if (debug) {
+    write(`|${chalk.bgBlue.black(hex(registers[0]))}   | `);
 
-  write(`${chalk.bgGreen.black(hex(opcode))} `);
-  write(
-    chalk.yellow(opcodes[opcode]?.name.padEnd(4, ' ')) + ' ' +
-    chalk.magenta((a ?? '0').padEnd(3, ' ')) + ' ' +
-    chalk.magenta((b ?? '0').padEnd(3, ' ')) + ' '
-  );
+    write(`${chalk.bgGreen.black(hex(opcode))} `);
+    write(
+      chalk.yellow(opcodes[opcode]?.name.padEnd(4, ' ')) + ' ' +
+      chalk.magenta((a ?? '0').padEnd(3, ' ')) + ' ' +
+      chalk.magenta((b ?? '0').padEnd(3, ' ')) + ' '
+    );
+  }
 }
 
 export function logBuffer(buf) {

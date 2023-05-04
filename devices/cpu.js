@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { opcodes, opcodesKeys } from '../src/opcodes.js';
-import { captureSnapshot, diffSnapshot, hasCliFlag, hex, printInstructions, readKey, refTransform } from '../src/utils.js';
+import { captureSnapshot, diffSnapshot, hasCliFlag, hex, printInstructions, protectedMemCheck, readKey, refTransform } from '../src/utils.js';
 import {
   ARG_SIZE,
   FLAGS,
@@ -21,7 +21,7 @@ export async function exec() {
       bus.slice(registers[0], registers[0] + INSTRUCTION_SIZE)
     );
     let offset = 0;
-    
+
     const opcode = instructionBuffer.readUint8(offset);
     offset += OPCODE_SIZE;
 
@@ -38,35 +38,45 @@ export async function exec() {
     a = await refTransform(a, aRef);
     b = await refTransform(b, bRef);
 
+    await printInstructions(a, b, opcode);
+
+    protectedMemCheck(a);
+    protectedMemCheck(b);
+
     const IP = registers[0];
-
-
     if (step) await readKey();
 
     const beforeSnapshot = await captureSnapshot(a, b, opcode);
-    await printInstructions(a, b, opcode);
     if (opcode === HALT_OPCODE) {
-      console.log();
+      if (debug) console.log();
       break;
     }
-    
+
     registers[1] = a;
     registers[2] = b;
 
     if (!opcodes[opcode]) throw new Error(`Invalid opcode`);
     opcodes[opcode](registers);
-    
+
     const afterSnapshot = await captureSnapshot(a, b, opcode);
     await diffSnapshot(a, b, beforeSnapshot, afterSnapshot);
 
     if (IP === registers[0]) registers[0] += INSTRUCTION_SIZE;
-    else if (debug) console.log(`|${chalk.bgGray.black('JUMP \u21A9')}|${chalk.bgGray.black('\u21A9 '.repeat(15))}`);
+    else {
+      if (debug) {
+        if (opcode === opcodesKeys['INT']) {
+          console.log(`|${chalk.bgYellow.black('INTER :')}|${chalk.bgYellow.black('::'.repeat(15))}`)
+        } else {
+          console.log(`|${chalk.bgGray.black('JUMP  \u21A9')}|${chalk.bgGray.black('\u21A9 '.repeat(15))}`)
+        }
+      };
+    }
   }
   const returnValue = hex(registers[R_OFF + RETURN_REGISTER]);
   if (debug) {
     console.log('-'.repeat(25));
     console.log(`${chalk.bgRed("RETURN:")} ${chalk.red(returnValue)} (${chalk.gray(registers[R_OFF + RETURN_REGISTER])})`);
-  } else {
+  } else if (printReturn) {
     console.log(returnValue);
     console.log(registers[R_OFF + RETURN_REGISTER]);
   }

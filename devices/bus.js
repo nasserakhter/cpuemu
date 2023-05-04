@@ -105,11 +105,14 @@ const handler = {
     }
   },
   set: function (target, prop, value) {
-    if (typeof prop !== 'number') return Reflect.set(target, prop, value);
     const index = Number(prop);
-    if (isNaN(index) || index < 0 || index >= MAX_32_BIT) {
+
+    if (isNaN(index)) return Reflect.set(target, prop, value);
+    
+    if (index < 0 || index >= MAX_32_BIT) {
       throw new Error('Segmentation fault (write, core not dumped)');
     }
+
 
     const llDevice = Object.entries(ranges)
       .find(([, [start, end]]) => index >= start && index <= end);
