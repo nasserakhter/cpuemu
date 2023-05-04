@@ -1,6 +1,6 @@
-import { MAX_32_BIT } from "../constants.js";
+import { MAX_32_BIT } from "../src/constants.js";
 import crypto from 'crypto';
-import { write } from "../utils.js";
+import { write } from "../src/utils.js";
 import chalk from "chalk";
 
 const ranges = {
@@ -38,7 +38,7 @@ const getOpenRange = (size) => {
 }
 
 const attachBusDevice = (array, start, end, options) => {
-  const print = options?.print ?? true;
+  const print = (options?.print ?? true) && shouldPrint === true;
   const name = options?.name ?? null;
   const isProtected = options?.protected ?? false;
 

@@ -1,5 +1,5 @@
-import { CHIPSET_OPERATIONS, CHIPSET_SIZE } from "../constants.js";
-import { hasCliFlag } from "../utils.js";
+import { CHIPSET_OPERATIONS, CHIPSET_SIZE } from "../src/constants.js";
+import { hasCliFlag } from "../src/utils.js";
 
 const g_shouldPrint = hasCliFlag('chipset-logs');
 let g_buffer = Buffer.alloc(0);

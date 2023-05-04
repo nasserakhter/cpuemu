@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { assembleAndRun } from './assembleAndRun.js';
+import { assembleAndRun } from './src/assembleAndRun.js';
 
 try {
   await assembleAndRun();

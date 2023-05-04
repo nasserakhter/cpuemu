@@ -55,7 +55,7 @@ const JMP = () => registers[0] += getAtArg1() * INSTRUCTION_SIZE;
 const INT = () => registers[0]
 const JZ = () => registers[R_OFF] === 0 && (registers[0] += getAtArg1() * INSTRUCTION_SIZE);
 const NOP = () => { };
-const HLT = () => process.exit(0);
+const HLT = () => { };
 
 export const opcodes = [MOV, ADD, SUB, MUL, DIV, MOD, DEC, INC, INV, JMP, JZ, NOP, HLT];
 export const opcodesKeys = opcodes.map(x => x.name).reduce((a, c, i) => (a[c] = i, a), {});

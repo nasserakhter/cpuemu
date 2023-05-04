@@ -39,12 +39,17 @@ function preproccess(asm) {
   return lines;
 }
 
-export function assemble(asm) {
+export function assemble(asm, print = true) {
+  if (asm.length === 0) {
+    console.log('Invalid assembly');
+    process.exit(1);
+  }
+  
   asm = preproccess(asm);
 
   const debug = hasCliFlag('debug');
 
-  if (debug) {
+  if (debug && print) {
     console.log('\nFinal Assembly:');
     asm.forEach((x, i) => console.log(`${i + 1}| ${x}`));
     console.log();

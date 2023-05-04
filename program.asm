@@ -5,4 +5,4 @@ loop:
   DEC R0
   JMP loop
 end:
-  HLT
+  NOP

@@ -1,4 +1,4 @@
-import { INTERRUPT_TABLE_SIZE } from "../constants.js";
+import { INTERRUPT_TABLE_SIZE } from "../src/constants.js";
 
 export async function interrupts() {
   const [start, end] = getOpenRange(INTERRUPT_TABLE_SIZE);
