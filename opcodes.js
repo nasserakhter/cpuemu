@@ -1,4 +1,4 @@
-import { MAX_32_BIT, R_OFF } from "./constants.js";
+import { INSTRUCTION_SIZE, MAX_32_BIT, R_OFF } from "./constants.js";
 
 const setAtArg = (arg, value) => { 
   if (registers[arg][0] === "R") {
@@ -51,10 +51,11 @@ const INC = () => {
   setAtArg1(k >= MAX_32_BIT - 1 ? 0 : k + 1);
 }
 const INV = () => setAtArg1(~getAtArg1() >>> 0);
-const JMP = () => registers[0] = getAtArg1() - 1;
+const JMP = () => registers[0] += getAtArg1() * INSTRUCTION_SIZE;
 const INT = () => registers[0]
-const JZ = () => registers[R_OFF] === 0 && (registers[0] = getAtArg1() - 1);
+const JZ = () => registers[R_OFF] === 0 && (registers[0] += getAtArg1() * INSTRUCTION_SIZE);
 const NOP = () => { };
+const HLT = () => process.exit(0);
 
-export const opcodes = [MOV, ADD, SUB, MUL, DIV, MOD, DEC, INC, INV, JMP, JZ, NOP];
+export const opcodes = [MOV, ADD, SUB, MUL, DIV, MOD, DEC, INC, INV, JMP, JZ, NOP, HLT];
 export const opcodesKeys = opcodes.map(x => x.name).reduce((a, c, i) => (a[c] = i, a), {});

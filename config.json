@@ -1,0 +1,9 @@
+{
+  "ram": true,
+  "bios": true,
+  "debug": true,
+  "drivers": true,
+  "chipset": true,
+  "interrupts": true,
+  "unprotect-memory": true
+}

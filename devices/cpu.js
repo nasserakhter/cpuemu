@@ -1,9 +1,8 @@
 import chalk from 'chalk';
-import { opcodes } from './opcodes.js';
-import { hasCliFlag, hex, protectedMemCheck, readKey, write } from './utils.js';
+import { opcodes, opcodesKeys } from '../opcodes.js';
+import { hasCliFlag, hex, protectedMemCheck, readKey, startupChecks, write } from '../utils.js';
 import {
   ARG_SIZE,
-  CHIPSET_SIZE,
   FLAGS,
   INSTRUCTION_SIZE,
   MAGIC,
@@ -14,11 +13,12 @@ import {
   REGISTERS_COUNT,
   RETURN_REGISTER,
   R_OFF,
-  TOTAL_MEMORY_SIZE
-} from './constants.js';
+} from '../constants.js';
 
 import './bus.js';
+import { ram } from './ram.js';
 import { chipset } from './chipset.js';
+import { interrupts } from './interrupts.js';
 
 // registers and memory
 globalThis.registers = [];
@@ -29,68 +29,57 @@ if (hasCliFlag('unprotect-memory')) {
 }
 
 export async function exec(aex, options) {
+  await startupChecks();
   if (aex.slice(0, MAGIC_SIZE).toString() !== MAGIC) throw new Error("Invalid executable");
   aex = aex.slice(MAGIC_SIZE);
 
   // setup CPU internals
   registers = [0, '', '', ...new Array(REGISTERS_COUNT + 1).fill(0)];
-  // attach RAM into the first part of the bus.a
-  attachBusDevice(
-    new Array(TOTAL_MEMORY_SIZE + 1).fill(0),
-    0, TOTAL_MEMORY_SIZE - 1,
-    {
-      print: false,
-      name: 'RAM',
-      protected: true
-    }
-  );
+  // attach RAM into the first part of the bus
+  if (hasCliFlag('interrupts')) interrupts();
+  if (hasCliFlag('ram')) ram();
+  if (hasCliFlag('chipset')) chipset();
 
-  if (hasCliFlag('chipset')) {
-    // import code segment into the bus
-    const systemBuf = Buffer.alloc(CHIPSET_SIZE);
-    const chipsetLoc = getOpenRange(systemBuf.length)
+  const [codeSegStart, codeSegEnd] = getOpenRange(aex.length + INSTRUCTION_SIZE);
 
-    attachBusDevice(systemBuf, ...chipsetLoc, {
-      print: false,
-      name: 'SYSTEM',
-      protected: true
-    });
+  const HALT = [opcodesKeys['HLT'], REFS.IMMEDIATE,
+    0, REFS.IMMEDIATE, 0];
 
-    chipset(...chipsetLoc);
-  }
-
-  const [codeSegStart, codeSegEnd] = getOpenRange(aex.length);
-
-  attachBusDevice(aex, codeSegStart, codeSegEnd, {
+  attachBusDevice([...aex, ...HALT], codeSegStart, codeSegEnd, {
     name: 'BINARY',
     protected: true
   });
 
   registers = new Array(4 + REGISTERS_COUNT).fill(0);
+  registers[0] = codeSegStart;
 
-  const il = aex.length / INSTRUCTION_SIZE;
-
-  while (registers[0] < il) {
-    let offset = registers[0] * INSTRUCTION_SIZE;
-    const opcode = aex.readUint8(offset);
+  while (true) {
+    const instructionBuffer = Buffer.from(
+      bus.slice(registers[0], registers[0] + INSTRUCTION_SIZE)
+    );
+    let offset = 0;
+    
+    const opcode = instructionBuffer.readUint8(offset);
     offset += OPCODE_SIZE;
 
-    const aRef = aex.readUint8(offset);
+    const aRef = instructionBuffer.readUint8(offset);
     offset += REF_SIZE;
-    let a = aex.readUint32LE(offset).toString();
+    let a = instructionBuffer.readUint32LE(offset).toString();
     offset += ARG_SIZE;
 
-    const bRef = aex.readUint8(offset);
+    const bRef = instructionBuffer.readUint8(offset);
     offset += REF_SIZE;
-    let b = aex.readUint32LE(offset).toString();
+    let b = instructionBuffer.readUint32LE(offset).toString();
     offset += ARG_SIZE;
 
+    if (aRef === REFS.IMMEDIATE_NEGATIVE) a = `-${a}`;
     if (aRef === REFS.REGISTER) a = `R${a}`;
     if (aRef === REFS.ADDRESS) {
       protectedMemCheck(a);
       a = `@${a}`;
     }
 
+    if (bRef === REFS.IMMEDIATE_NEGATIVE) b = `-${b}`;
     if (bRef === REFS.REGISTER) b = `R${b}`;
     if (bRef === REFS.ADDRESS) {
       protectedMemCheck(b);
@@ -138,7 +127,7 @@ export async function exec(aex, options) {
       console.log();
     }
 
-    if (IP === registers[0]) registers[0]++;
+    if (IP === registers[0]) registers[0] += INSTRUCTION_SIZE;
     else if (debug) console.log(`|${chalk.bgGray.black('JUMP \u21A9')}|${chalk.bgGray.black('\u21A9 '.repeat(15))}`);
   }
   const returnValue = hex(registers[R_OFF + RETURN_REGISTER]);

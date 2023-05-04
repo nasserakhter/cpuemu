@@ -1,6 +1,6 @@
-import { MAX_32_BIT } from "./constants.js";
+import { MAX_32_BIT } from "../constants.js";
 import crypto from 'crypto';
-import { write } from "./utils.js";
+import { write } from "../utils.js";
 import chalk from "chalk";
 
 const ranges = {
@@ -25,12 +25,12 @@ const getOpenRange = (size) => {
     if (gap >= size) {
       return [start, start + size];
     }
-    start = currRange[1];
+    start = currRange[1] + 1;
   }
   if (MAX_32_BIT - start >= size) {
     return [
-      start === 0 ? 0 : start + 1,
-      start + size// start === 0 ? start + size : start + size + 1
+      start,
+      start + size - 1// start === 0 ? start + size : start + size + 1
     ];
   }
   throw new Error('Address bounds exceeded, could not attach bus device');
@@ -75,12 +75,22 @@ const attachBusDevice = (array, start, end, options) => {
 globalThis.getOpenRange = getOpenRange;
 globalThis.attachBusDevice = attachBusDevice;
 
+const backBus = [];
+
 const handler = {
   get: function (target, prop, receiver) {
     if (prop === 'length') return MAX_32_BIT;
+    if (prop === 'slice') return (start, end) => {
+      const arr = [];
+      for (let i = start; i < end; i++) {
+        arr.push(bus[i]);
+      }
+      return arr;
+    };
     const index = Number(prop);
 
-    if (isNaN(index) || index < 0 || index >= MAX_32_BIT) {
+    if (isNaN(index)) return Reflect.get(target, prop);
+    if (index < 0 || index >= MAX_32_BIT) {
       throw new Error('Segmentation fault (read, core not dumped)');
     }
 
@@ -90,11 +100,12 @@ const handler = {
     if (llDevice) {
       return busDevices[llDevice[0]][index - llDevice[1][0]] ?? 0;
     } else {
-      console.log('Warning: read from unmapped memory region, the MMU will return 0 but this is likely a bug in your code.')
+      //console.log('Warning: read from unmapped memory region, the MMU will return 0 but this is likely a bug in your code.')
       return 0x00; // for unmapped memory, return 0x00
     }
   },
-  set: function (target, prop, value, receiver) {
+  set: function (target, prop, value) {
+    if (typeof prop !== 'number') return Reflect.set(target, prop, value);
     const index = Number(prop);
     if (isNaN(index) || index < 0 || index >= MAX_32_BIT) {
       throw new Error('Segmentation fault (write, core not dumped)');
@@ -122,4 +133,4 @@ const handler = {
   }
 };
 
-globalThis.bus = new Proxy([], handler);
+globalThis.bus = new Proxy(backBus, handler);

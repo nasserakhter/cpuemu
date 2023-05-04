@@ -11,8 +11,9 @@ export const OPCODE_SIZE = 1; // 1 byte
 export const REF_SIZE = 1; // 1 byte
 export const REFS = {
   IMMEDIATE: 1,
-  REGISTER: 2,
-  ADDRESS: 3,
+  IMMEDIATE_NEGATIVE: 2,
+  REGISTER: 3,
+  ADDRESS: 4,
 }
 export const ARG_SIZE = 4; // each arg is 4 bytes + 1 byte for ref/deref
 export const INSTRUCTION_SIZE = OPCODE_SIZE + (2 * (REF_SIZE + ARG_SIZE));
@@ -30,12 +31,11 @@ export const RETURN_REGISTER = 6;
 // interrupts
 export const INTERRUPT_MAX = 2; // maximum number of interrupts
 export const INTERRUPT_SIZE = 2; // 2 bytes per interrupt, 1 for the interrupt number, 1 for the address
-export const INTERRUPT_TABLE_SIZE = INTERRUPT_MAX * INTERRUPT_SIZE;
 export const INTERRUPT_TABLE_OFFSET = 0x0;
+export const INTERRUPT_TABLE_SIZE = INTERRUPT_MAX * INTERRUPT_SIZE;
 
 // memory
-export const WORKABLE_MEMORY_SIZE = 16; // number of bytes (yes, very small)
-export const TOTAL_MEMORY_SIZE = INTERRUPT_TABLE_SIZE + WORKABLE_MEMORY_SIZE;
+export const TOTAL_MEMORY_SIZE = 16; // number of bytes (yes, very small)
 
 /*
   BUS & DEVICES
@@ -43,9 +43,14 @@ export const TOTAL_MEMORY_SIZE = INTERRUPT_TABLE_SIZE + WORKABLE_MEMORY_SIZE;
 
 // chipset
 export const CHIPSET_SIZE = 1; // 1 byte
-export const CHIPSET_INTERVAL = 500; // run the chipset funcs every 500ms
 export const CHIPSET_OPERATIONS = {
   SHUTDOWN: 1
+};
+
+// GPU
+export const GPU_SIZE = 2; // 2 bytes, one for operation, one for data
+export const GPU_OPERATIONS = {
+  PRINT_CHAR: 1
 };
 
 /*
