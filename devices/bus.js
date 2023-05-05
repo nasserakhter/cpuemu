@@ -3,16 +3,16 @@ import crypto from 'crypto';
 import { write } from "../src/utils.js";
 import chalk from "chalk";
 
-const ranges = {
+global.ranges = {
   //'uuid': [0, 16], // virtual address 0 -> 16
 }
 
 globalThis.busProtectedRanges = {
-  //'uuid'  
+  //'uuid': [0, 16], // virtual address 0 -> 16 is protected
 };
 
-const busDevices = {
-  //'uuid': [],
+global.busDevices = {
+  //'uuid': [/* RAW BYTES 0x00,0x00,0x00... */],
 }
 
 const getOpenRange = (size) => {
@@ -34,7 +34,32 @@ const getOpenRange = (size) => {
     ];
   }
   throw new Error('Address bounds exceeded, could not attach bus device');
+}
 
+const growBusDeviceRange = (id, amount, reverse = false) => {
+  let [start, end] = ranges[id];
+  if (reverse) start -= amount;
+  else end += amount;
+
+  if (start < 0 || end >= MAX_32_BIT) {
+    throw new Error('Address Range Overflow, could not grow bus device');
+  }
+
+  // check if new range overlaps with any other range
+  const overlaps = Object.entries(ranges).filter(x => x[0] !== id).some(([,[s, e]]) => {
+    return (start >= s && start <= e) || (end >= s && end <= e);
+  });
+
+  if (overlaps) {
+    throw new Error('Address Range Overlap, could not grow bus device');
+  }
+
+  ranges[id] = [start, end];
+  if (busProtectedRanges[id]) {
+    busProtectedRanges[id] = [start, end];
+  }
+  
+  return [start, end];
 }
 
 const attachBusDevice = (array, start, end, options) => {
@@ -55,9 +80,11 @@ const attachBusDevice = (array, start, end, options) => {
   if (print && debug) {
     console.log();
     console.log('Attached new bus device');
-    Object.entries(ranges).forEach(([id, [start, end]]) => {
+    Object.entries(ranges).sort(([,[startA]], [, [startB]]) => startA - startB).forEach(([id, [start, end]]) => {
       const nameI = id.indexOf('#');
-      write(chalk.bgGreen.black(` ${start} -> ${end}`.padEnd(15, ' ')));
+      write(chalk.bgGreen.black(` ${start}`.padEnd(11)));
+      write(chalk.bgGreen.black(' -> '));
+      write(chalk.bgGreen.black(`${end}`.padEnd(11)));
       write(': ');
       const isEntryProtected = !!busProtectedRanges[id];
       const chalkFun = isEntryProtected ? chalk.bgRed.black : chalk.bgYellow.black;
@@ -74,6 +101,7 @@ const attachBusDevice = (array, start, end, options) => {
 
 globalThis.getOpenRange = getOpenRange;
 globalThis.attachBusDevice = attachBusDevice;
+globalThis.growBusDeviceRange = growBusDeviceRange;
 
 const backBus = [];
 

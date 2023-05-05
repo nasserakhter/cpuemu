@@ -1,4 +1,4 @@
-import { ARG_SIZE, INSTRUCTION_SIZE, MAGIC, MAGIC_SIZE, OPCODE_SIZE, REFS, REF_SIZE } from "./constants.js";
+import { ARG_SIZE, INSTRUCTION_SIZE, MAGIC, MAGIC_SIZE, MAX_32_BIT, OPCODE_SIZE, REFS, REF_SIZE } from "./constants.js";
 import { opcodesKeys } from "./opcodes.js";
 import { hasCliFlag } from "./utils.js";
 
@@ -100,7 +100,7 @@ export function assemble(asm, print = true) {
     a = parseInt(a);
 
     offset += REF_SIZE;
-    aex.writeUint32LE(a, offset);
+    aex.writeUint32LE(a % MAX_32_BIT, offset);
     offset += ARG_SIZE;
 
     if (b[0] === 'R') {
@@ -122,7 +122,7 @@ export function assemble(asm, print = true) {
     b = parseInt(b);
 
     offset += REF_SIZE;
-    aex.writeUint32LE(b, offset);
+    aex.writeUint32LE(b % MAX_32_BIT, offset);
     offset += ARG_SIZE;
 
   });

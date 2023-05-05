@@ -1,4 +1,5 @@
-import { INSTRUCTION_SIZE, INTERRUPT_SIZE, INTERRUPT_TABLE_OFFSET, MAX_32_BIT, R_OFF } from "./constants.js";
+import { pop, push } from "../devices/stack.js";
+import { INSTRUCTION_SIZE, INTERRUPT_SIZE, INTERRUPT_TABLE_OFFSET, MAX_32_BIT, REGISTERS_COUNT, R_OFF } from "./constants.js";
 
 const setAtArg = (arg, value, fromRegister = true) => {
   if (registers[arg][0] === "R") {
@@ -72,8 +73,11 @@ const INV = () => setAtArg1(~getAtArg1() >>> 0);
 // Jump to address (arg1)
 const JMP = () => registers[0] = getAtArg1();
 // Fire interrupt (arg1)
-const INT = () =>  
+const INT = () => {
+  push(registers[0] + INSTRUCTION_SIZE); // Push return address
+  for (let i = 1; i < REGISTERS_COUNT; i++) push(registers[i]); // Push registers
   registers[0] = bus[INTERRUPT_TABLE_OFFSET + getAtArg1() * INTERRUPT_SIZE];
+}
 // Jump to address (arg1) if register (arg2) is zero
 const JZ = () => registers[R_OFF] === 0 && JMP();
 // No operation
@@ -82,10 +86,28 @@ const NOP = () => { };
 const HLT = () => { };
 // Gets the address of the instruction at register 0 by offset (arg1)
 const ADR = () => registers[R_OFF] = getAtArg1();
+// Returns from the interrupt and restores the registers
+const RTI = () => {
+  for (let i = 1; i < REGISTERS_COUNT; i++) 
+    registers[i] = pop();
+  registers[0] = pop();
+}
+// Push a value (arg1) to the stack
+const PUSH = () => push(getAtArg1());
+// Pop a value from the stack to register or memory (arg1)
+const POP = () => setAtArg1(pop());
+// Call a function at address (arg1)
+const CALL = () => {
+  push(registers[0] + INSTRUCTION_SIZE); // Push return address
+  registers[0] = getAtArg1();
+}
+// Return from a function
+const RET = () => registers[0] = pop();
 
 export const opcodes = [
   MOV, ADD, SUB, MUL, DIV, MOD,
   DEC, INC, INV, JMP, INT, JZ,
-  NOP, HLT, ADR
+  NOP, HLT, ADR, RTI, PUSH, POP,
+  CALL, RET
 ];
 export const opcodesKeys = opcodes.map(x => x.name).reduce((a, c, i) => (a[c] = i, a), {});

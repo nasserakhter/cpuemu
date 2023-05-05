@@ -3,6 +3,7 @@
 import { chipset } from "../devices/chipset.js";
 import { interrupts } from "../devices/interrupts.js";
 import { ram } from "../devices/ram.js";
+import { stack } from "../devices/stack.js";
 import { FLAGS, REGISTERS_COUNT } from "./constants.js";
 import { compileDrivers, hasCliFlag, loadBinary, loadDrivers, startupChecks } from "./utils.js";
 
@@ -11,17 +12,17 @@ export async function setup(aex) {
   // chipset drivers should have access to the entire bus
   globalThis.instructionFlags = FLAGS.PROTECTED_MEMORY;
   globalThis.shouldPrint = false;
-  globalThis.stack = [];
   globalThis.debug = hasCliFlag('debug-drivers');
   globalThis.step = hasCliFlag('step-drivers');
   globalThis.printReturn = hasCliFlag('print-return-drivers');
   await startupChecks();
-
+  
   
   // attach RAM into the first part of the bus
   if (hasCliFlag('interrupts')) interrupts();
   if (hasCliFlag('ram')) ram();
   if (hasCliFlag('chipset')) chipset();
+  stack();
   
   console.log("Compiling and loading drivers...");
   const compiledDrivers = await compileDrivers();

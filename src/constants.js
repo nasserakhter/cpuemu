@@ -35,7 +35,7 @@ export const REGISTERS_COUNT = 6;
 export const RETURN_REGISTER = 6;
 
 // interrupts
-export const INTERRUPT_MAX = 2; // maximum number of interrupts
+export const INTERRUPT_MAX = 8; // maximum number of interrupts
 export const INTERRUPT_SIZE = 1; // 2 bytes per interrupt, 1 for the interrupt number, 1 for the address
 export const INTERRUPT_TABLE_OFFSET = 0x0;
 export const INTERRUPT_TABLE_SIZE = INTERRUPT_MAX * INTERRUPT_SIZE;
