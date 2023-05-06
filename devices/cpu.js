@@ -75,7 +75,14 @@ export async function exec() {
   const returnValue = hex(registers[R_OFF + RETURN_REGISTER]);
   if (debug) {
     console.log('-'.repeat(25));
-    console.log(`${chalk.bgRed("RETURN:")} ${chalk.red(returnValue)} (${chalk.gray(registers[R_OFF + RETURN_REGISTER])})`);
+    let newNum = returnValue;
+    let strBuffer = '';
+    while (newNum > 0) {
+      const charCode = newNum & 255;
+      strBuffer = String.fromCharCode(charCode >= 32 && charCode <= 126 ? charCode : 46) + strBuffer;
+      newNum >>>= 8
+    }
+    console.log(`${chalk.bgRed("RETURN:")} ${chalk.red(returnValue)} (${chalk.yellow(registers[R_OFF + RETURN_REGISTER])}) "${chalk.blue(strBuffer)}"`);
   } else if (printReturn) {
     console.log(returnValue);
     console.log(registers[R_OFF + RETURN_REGISTER]);

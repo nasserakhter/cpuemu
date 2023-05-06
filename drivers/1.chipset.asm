@@ -2,7 +2,7 @@ start:
   JMP main
 
 handler:
-  MOV R6, 9926
+  MOV R6, 1128810832
   RTI
 
 
