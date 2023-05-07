@@ -1,11 +1,19 @@
 start: 
-  JMP main
+  ADR handler
+  MOV [0], R0
+  HLT
 
+; The chipset controller is attatched at 0x
+shutdown:
+  MOV []
+  HLT
+; Errors start with 0xEDxx
+; 0xED02: Unknown interrupt subfunction
+error_unknownInterruptSubfunction:
+  MOV R0, 0xED02
+  HLT
+
+; R0 will store the subfunction to call
 handler:
   MOV R6, 1128810832
   IRET
-
-
-main:
-  ADR handler   ; Get the address of the handler subroutine
-  MOV [0], R0   ; Store the address of the handler in the interrupt table

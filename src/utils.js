@@ -15,7 +15,7 @@ if (fs.existsSync('./config.json')) {
 export function protectedMemCheck(a) {
   if (instructionFlags & FLAGS.PROTECTED_MEMORY || a[0] !== "@") return;
   a = +a.slice(1);
-  
+
   Object.values(busProtectedRanges).forEach(([start, end]) => {
     if (a >= start && a <= end) {
       throw new Error(
@@ -38,6 +38,7 @@ export async function compileDrivers() {
     const driver = fs.readFileSync('./drivers/' + driverAssembly, 'utf8');
     const driverName = driverAssembly.replace('.asm', '');
     const driverBin = await assemble(driver, false);
+    console.log(driverBin[0x97]);
     const driverBinPath = './drivers/' + driverName + '.aex';
     fs.writeFileSync(driverBinPath, driverBin);
     return driverBinPath;
@@ -100,11 +101,27 @@ export async function startupChecks() {
 }
 
 export async function refTransform(a, aRef) {
-  if (aRef === REFS.RELATIVE) a = `+${a}`;
-  if (aRef === REFS.RELATIVE_NEGATIVE) a = `-${a}`;
-  if (aRef === REFS.REGISTER) a = `R${a}`;
-  if (aRef === REFS.ADDRESS) a = `@${a}`;
-  if (aRef === REFS.ADDRESS_AT_REGISTER) a = `@R${a}`;
+  switch (aRef) {
+    case REFS.IMMEDIATE:
+      break;
+    case REFS.RELATIVE:
+      a = `+${a}`;
+      break;
+    case REFS.RELATIVE_NEGATIVE:
+      a = `-${a}`;
+      break;
+    case REFS.REGISTER:
+      a = `R${a}`;
+      break;
+    case REFS.ADDRESS:
+      a = `@${a}`;
+      break;
+    case REFS.ADDRESS_AT_REGISTER:
+      a = `@R${a}`;
+      break;
+    default:
+      throw new Error(`Invalid reference type a:${a} ref:${aRef}`);
+  }
   return a.toString();
 }
 
@@ -113,6 +130,25 @@ export async function refTransform(a, aRef) {
 export const hex = (num = 0) => `0x${num.toString(16).toUpperCase()}`;
 
 export const write = (text) => process.stdout.write(text);
+
+export async function debugActions(key) {
+  switch (key) {
+    case 'd':
+      console.log("\nGenerating bus dump");
+      const fd = await fs.promises.open('./dump.bin', 'w');
+      Object.entries(globalThis.ranges).map(([id, [start, end]]) => {
+        const buf = Buffer.alloc(end - start);
+        for (let i = 0; i < end - start; i++) {
+          buf[i] = bus[i + start];
+        }
+        fd.write(buf, 0, end - start, start);
+        console.log('Writing ' + id.replace('#', ' ') + ' to ' + hex(start) + ' -> ' + hex(end));
+      });
+      fd.close();
+      console.log("Bus dump generated");
+      break;
+  }
+}
 
 export async function readKey() {
   process.stdin.setRawMode(true);
@@ -174,7 +210,7 @@ export async function diffSnapshot(a, b, snapshotA, snapshotB) {
 
 export async function printInstructions(a, b, opcode) {
   if (debug) {
-    write(`|${chalk.bgBlue.black(hex(registers[0]))}   | `);
+    write(`|${chalk.bgBlue.black(hex(registers[0]).padEnd(7))}| `);
 
     write(`${chalk.bgGreen.black(hex(opcode))} `);
     write(

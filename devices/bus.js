@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { write } from "../src/utils.js";
 import chalk from "chalk";
 
-global.ranges = {
+globalThis.ranges = {
   //'uuid': [0, 16], // virtual address 0 -> 16
 }
 
@@ -11,7 +11,7 @@ globalThis.busProtectedRanges = {
   //'uuid': [0, 16], // virtual address 0 -> 16 is protected
 };
 
-global.busDevices = {
+globalThis.busDevices = {
   //'uuid': [/* RAW BYTES 0x00,0x00,0x00... */],
 }
 
@@ -63,6 +63,8 @@ const growBusDeviceRange = (id, amount, reverse = false) => {
 }
 
 const attachBusDevice = (array, start, end, options) => {
+  if (Buffer.isBuffer(array)) throw new Error('Buffer is not supported, please use Uint32Array');
+  
   const print = (options?.print ?? true) && shouldPrint === true;
   const name = options?.name ?? null;
   const isProtected = options?.protected ?? false;

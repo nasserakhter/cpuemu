@@ -65,6 +65,7 @@ export function assemble(asm, print = true) {
 
   asm.forEach(i => {
     const asmOpcode = i.slice(0, i.indexOf(' ') >>> 0);
+
     const operands = i.slice(asmOpcode.length + 1);
     if (operands?.indexOf(',') !== operands?.indexOf(', ')) {
       throw new Error(`Invalid syntax, space after comma is required: ${i}`);

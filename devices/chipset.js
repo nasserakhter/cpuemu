@@ -6,7 +6,7 @@ let g_buffer = Buffer.alloc(0);
 
 export async function chipset() {
   // import code segment into the bus
-  const g_buffer = Buffer.alloc(CHIPSET_SIZE);
+  const g_buffer = new Uint32Array(CHIPSET_SIZE);
   const [start, end] = getOpenRange(g_buffer.length);
 
   attachBusDevice(g_buffer, start, end, {

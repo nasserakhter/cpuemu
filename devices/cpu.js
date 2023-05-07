@@ -1,9 +1,8 @@
 import chalk from 'chalk';
 import { opcodes, opcodesKeys } from '../src/opcodes.js';
-import { captureSnapshot, diffSnapshot, hasCliFlag, hex, printInstructions, protectedMemCheck, readKey, refTransform } from '../src/utils.js';
+import { captureSnapshot, debugActions, diffSnapshot, hasCliFlag, hex, printInstructions, protectedMemCheck, readKey, refTransform } from '../src/utils.js';
 import {
   ARG_SIZE,
-  FLAGS,
   INSTRUCTION_SIZE,
   OPCODE_SIZE,
   REF_SIZE,
@@ -44,7 +43,7 @@ export async function exec() {
     protectedMemCheck(b);
 
     const IP = registers[0];
-    if (step) await readKey();
+    if (step) await debugActions(await readKey());
 
     const beforeSnapshot = await captureSnapshot(a, b, opcode);
     if (opcode === HALT_OPCODE) {
