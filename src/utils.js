@@ -38,7 +38,6 @@ export async function compileDrivers() {
     const driver = fs.readFileSync('./drivers/' + driverAssembly, 'utf8');
     const driverName = driverAssembly.replace('.asm', '');
     const driverBin = await assemble(driver, false);
-    console.log(driverBin[0x97]);
     const driverBinPath = './drivers/' + driverName + '.aex';
     fs.writeFileSync(driverBinPath, driverBin);
     return driverBinPath;

@@ -10,17 +10,52 @@ function preproccess(asm) {
     .map(l => l.trim())
     .filter(l => l.length > 0);
 
-
+  // get external imports
+  // collect constants
   const constants = {};
-  const labels = {};
-  let labelsCount = 0;
-
-  lines = lines.filter((line, i) => {
+  lines = lines.filter((line) => {
     if (line[0] === '%' && line.startsWith('%define')) {
-      const [name, value] = line.slice(8).split(' ');
+      let nameAndValue = line.slice(8);
+      const name = nameAndValue.slice(0, nameAndValue.indexOf(' '));
+      const value = nameAndValue.slice(name.length).trim();
       constants[name] = value;
       return false;
-    } else if (line.match(/^[a-zA-Z\_]+\:$/gm)) {
+    }
+    return true;
+  });
+
+  const evaluateConstant = (expr) => {
+    //console.log(expr);
+    // three secnarios
+    // 1: it's a number
+    // 2: it's a reference to another constant
+    // 3: it's an addition of many constants
+    if (isNaN(+expr)) {
+      if (constants[expr]) {
+        // it's a reference to another constant
+        return evaluateConstant(constants[expr]);
+      } else {
+        // it's not a number
+        // check if any addition is needed
+        const parts = expr.split('+').map(x => x.trim());
+        const evaluatedParts = parts.map(evaluateConstant);
+        return evaluatedParts.reduce((a, b) => a + b, 0);
+      }
+    } else {
+      // it's a number
+      return +expr;
+    }
+  }
+
+  Object.keys(constants).forEach((key) => {
+    constants[key] = evaluateConstant(constants[key]);
+  });
+
+  // collect labels
+  const labels = {};
+  let labelsCount = 0;
+  lines = lines.filter((line, i) => {
+    if (line.match(/^[a-zA-Z\_]+\:$/gm)) {
       labels[line.slice(0, -1)] = i - labelsCount + 1;
       labelsCount++;
       return false;
@@ -31,10 +66,11 @@ function preproccess(asm) {
   lines = lines.map((x, i) => {
     if (x.indexOf('[') && x.indexOf(']')) {
       // we have some kind of reference or whatnot
-      const matches = x.match(/\[[^\]]+\]/g); // get all references
+      const matches = x.match(/\[[a-zA-Z\_]{1}[a-zA-Z0-9\_]*\]/g); // get all references
       if (matches) {
         for (i = 0; i < matches.length; i++) {
           const match = matches[i].slice(1, -1);
+          //console.log(constants[match]);
           if (constants[match]) {
             x = x.replace(`[${match}]`, constants[match]);
           }
@@ -42,13 +78,15 @@ function preproccess(asm) {
       }
     }
 
+
     if (x.match(/\s[a-zA-Z\_]+$/g)) {
       const [jmp, label] = x.split(' ');
+      console.log(x);
       if (labels[label]) {
         const num = labels[label] - i - 1;
         return `${jmp} ${num > 0 ? '+' : ''}${num}`;
       } else {
-        throw new Error(`Invalid label: ${label}`);
+        throw new Error(`NULL_REFERENCE ${label}`);
       }
     } else {
       return x;
@@ -63,7 +101,7 @@ export function assemble(asm, print = true) {
     console.log('Invalid assembly');
     process.exit(1);
   }
-  
+
   asm = preproccess(asm);
 
   const debug = hasCliFlag('debug');

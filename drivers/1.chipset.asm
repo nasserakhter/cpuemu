@@ -5,7 +5,7 @@ start:
 
 ; The chipset controller is attatched at 0x
 shutdown:
-  MOV []
+  ;MOV []
   HLT
 ; Errors start with 0xEDxx
 ; 0xED02: Unknown interrupt subfunction

@@ -9,10 +9,24 @@ start:
 ; MAP has a size of 4 so it can store a maximum of 4 addresses
 ; Real memory starts at address 0x10
 ; The map address contains the last address of the memory block
-findFreeMapAddress:
-  PUSH R0      ; Push the memory block size on the stack
+%define RAM_START         0x08
+%define RAM_SIZE          16
+%define GLOBAL_ARGS_SIZE  4
+%define MAP_SIZE          4
+
+%define ARG_1             RAM_START
+
+%define RAM_END           RAM_START + RAM_SIZE
+%define MAP_START         RAM_START + GLOBAL_ARGS_SIZE
+
+%define REAL_MEMORY_START MAP_START + MAP_SIZE
+%define REAL_MEMORY_END   RAM_END
+
+
+malloc:
+  PUSH R1      ; Push the memory block size on the stack
   MOV R0, 4    ; Add 3 to get the last address of the map
-  MOV R1, 0x0C ; Map start
+  MOV R1, [MAP_START] ; Map start
 findFreeMapAddress_loop:
   JZ error_noFreeMemory
   MOV R2, R0
@@ -25,12 +39,12 @@ findFreeMapAddress_loop:
 foundMapAddress:
   MOV R2, R1
   MOV R0, R1
-  SUB R0, 0x0C
+  SUB R0, [MAP_START]
   JZ foundMapAddress_first
   JMP foundMapAddress_other
 foundMapAddress_first:
   ; Store the start address of memory (0x10) in the first map
-  MOV R0, 0x10
+  MOV R0, [REAL_MEMORY_START]
   POP R1        ; Get the memory block size
   ADD R1, R0    ; Add the memory block size to the start address
   MOV [R2], R1  ; Store the end address in the map
@@ -44,7 +58,7 @@ foundMapAddress_other:
   MOV R0, R2
   DEC R0
   MOV R0, [R0]  ; Get the previous map address
-  INC R0        ; Increment the previous map address
+  ;INC R0        ; Increment the previous map address
   POP R1        ; Get the memory block size
   ADD R1, R0    ; Add the memory block size to the start address
   MOV [R2], R1  ; Store the end address in the map
@@ -82,7 +96,7 @@ error_noFreeMemory:
 handler:
   ; Mappings for R0's value to handlers
   ; If R0 is 0 then jump to handler 0
-  JZ findFreeMapAddress
+  JZ malloc
   ; If R0 is 1 then decrement, and jump to handler 1
   DEC R0
   JZ secondFunc
