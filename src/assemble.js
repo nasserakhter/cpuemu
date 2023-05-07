@@ -10,12 +10,17 @@ function preproccess(asm) {
     .map(l => l.trim())
     .filter(l => l.length > 0);
 
-  // find all labels
+
+  const constants = {};
   const labels = {};
   let labelsCount = 0;
 
   lines = lines.filter((line, i) => {
-    if (line.match(/^[a-zA-Z\_]+\:$/gm)) {
+    if (line[0] === '%' && line.startsWith('%define')) {
+      const [name, value] = line.slice(8).split(' ');
+      constants[name] = value;
+      return false;
+    } else if (line.match(/^[a-zA-Z\_]+\:$/gm)) {
       labels[line.slice(0, -1)] = i - labelsCount + 1;
       labelsCount++;
       return false;
@@ -24,6 +29,19 @@ function preproccess(asm) {
   });
 
   lines = lines.map((x, i) => {
+    if (x.indexOf('[') && x.indexOf(']')) {
+      // we have some kind of reference or whatnot
+      const matches = x.match(/\[[^\]]+\]/g); // get all references
+      if (matches) {
+        for (i = 0; i < matches.length; i++) {
+          const match = matches[i].slice(1, -1);
+          if (constants[match]) {
+            x = x.replace(`[${match}]`, constants[match]);
+          }
+        }
+      }
+    }
+
     if (x.match(/\s[a-zA-Z\_]+$/g)) {
       const [jmp, label] = x.split(' ');
       if (labels[label]) {

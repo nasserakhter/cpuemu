@@ -1,16 +1,7 @@
 start:
   MOV R0, 4            ; Get 4 bytes of memory
   CALL getFreeMemory   ; Call the func
-  MOV R6, R0           ; Returns R0, R1, R2: start, end, map table
-  MOV [R6], 15       ; Set the first byte to 0x15 
-  MOV R0, 5
-loop:
-  JZ end
-  DEC R0
-  INC [R6]
-  JMP loop
-end:
-  MOV R6, [R6]         ; 0x20
+  MOV R6, R0  ; Returns R0, R1, R2: start, end, map table
   HLT
 
 ; LIBRARY
