@@ -84,6 +84,9 @@ export function assemble(asm, print = true) {
     if (a[0] === 'R') {
       aex.writeUint8(REFS.REGISTER, offset);
       a = a.slice(1);
+    } else if (a[0] === '[' && a[1] === 'R' && a[a.length - 1] === ']') {
+      aex.writeUint8(REFS.ADDRESS_AT_REGISTER, offset);
+      a = a.slice(2, -1);
     } else if (a[0] === '[' && a[a.length - 1] === ']') {
       aex.writeUint8(REFS.ADDRESS, offset);
       a = a.slice(1, -1);
@@ -106,6 +109,9 @@ export function assemble(asm, print = true) {
     if (b[0] === 'R') {
       aex.writeUint8(REFS.REGISTER, offset);
       b = b.slice(1);
+    } else if (b[0] === '[' && b[1] === 'R' && b[b.length - 1] === ']') {
+      aex.writeUint8(REFS.ADDRESS_AT_REGISTER, offset);
+      b = b.slice(2, -1);
     } else if (b[0] === '[' && b[b.length - 1] === ']') {
       aex.writeUint8(REFS.ADDRESS, offset);
       b = b.slice(1, -1);

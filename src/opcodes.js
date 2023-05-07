@@ -1,5 +1,5 @@
 import { pop, push } from "../devices/stack.js";
-import { INSTRUCTION_SIZE, INTERRUPT_SIZE, INTERRUPT_TABLE_OFFSET, MAX_32_BIT, REGISTERS_COUNT, R_OFF } from "./constants.js";
+import { FLAGS, INSTRUCTION_SIZE, INTERRUPT_SIZE, INTERRUPT_TABLE_OFFSET, MAX_32_BIT, REGISTERS_COUNT, R_OFF } from "./constants.js";
 
 const setAtArg = (arg, value, fromRegister = true) => {
   if (registers[arg][0] === "R") {
@@ -15,30 +15,25 @@ const setAtArg = (arg, value, fromRegister = true) => {
 
 const getAtArg = (arg, fromRegister = true) => {
   //if (typeof registers[arg] === 'number' return arg;
-
-  if (fromRegister) {
-    if (registers[arg][0] === "R") {
-      const rI = +registers[arg].slice(1) + R_OFF;
-      const regVal = registers[rI];
-      if (regVal === undefined) throw new Error(`Segmentation fault: register is out of bounds`);
-      return regVal;
-    } else if (registers[arg][0] === "@") {
-      const mI = getAtArg(registers[arg].slice(1), false);
-      return bus[mI];
-    } else if (registers[arg][0] === "+") {
-      return registers[0] + (+registers[arg].slice(1) * INSTRUCTION_SIZE);
-    } else if (registers[arg][0] === "-") {
-      return registers[0] - (+registers[arg].slice(1) * INSTRUCTION_SIZE);
-    } else {
-      return +registers[arg];
-    }
+  if (arg[0] === "R") {
+    const rI = +arg.slice(1) + R_OFF;
+    const regVal = registers[rI];
+    if (regVal === undefined) throw new Error(`Segmentation fault: register is out of bounds`);
+    return regVal;
+  } else if (arg[0] === "@") {
+    const mI = getAtArg(arg.slice(1), false);
+    return bus[mI];
+  } else if (arg[0] === "+") {
+    return registers[0] + (+arg.slice(1) * INSTRUCTION_SIZE);
+  } else if (arg[0] === "-") {
+    return registers[0] - (+arg.slice(1) * INSTRUCTION_SIZE);
   } else {
     return +arg;
   }
 }
 
-const getAtArg1 = (fromRegister = true) => getAtArg(1, fromRegister);
-const getAtArg2 = (fromRegister = true) => getAtArg(2, fromRegister);
+const getAtArg1 = (fromRegister = true) => getAtArg(registers[1], fromRegister);
+const getAtArg2 = (fromRegister = true) => getAtArg(registers[2], fromRegister);
 
 const setAtArg1 = (value, fromRegister = true) => setAtArg(1, value, fromRegister);
 const setAtArg2 = (value, fromRegister = true) => setAtArg(2, value, fromRegister);
@@ -74,6 +69,8 @@ const INV = () => setAtArg1(~getAtArg1() >>> 0);
 const JMP = () => registers[0] = getAtArg1();
 // Fire interrupt (arg1)
 const INT = () => {
+  global.instructionFlagsOld = global.instructionFlags;
+  global.instructionFlags = FLAGS.PROTECTED_MEMORY;
   push(registers[0] + INSTRUCTION_SIZE); // Push return address
   for (let i = 1; i < REGISTERS_COUNT; i++) push(registers[i]); // Push registers
   registers[0] = bus[INTERRUPT_TABLE_OFFSET + getAtArg1() * INTERRUPT_SIZE];
@@ -87,8 +84,9 @@ const HLT = () => { };
 // Gets the address of the instruction at register 0 by offset (arg1)
 const ADR = () => registers[R_OFF] = getAtArg1();
 // Returns from the interrupt and restores the registers
-const RTI = () => {
-  for (let i = 1; i < REGISTERS_COUNT; i++) 
+const IRET = () => {
+  global.instructionFlags = global.instructionFlagsOld;
+  for (let i = 1; i < REGISTERS_COUNT; i++)
     registers[i] = pop();
   registers[0] = pop();
 }
@@ -107,7 +105,7 @@ const RET = () => registers[0] = pop();
 export const opcodes = [
   MOV, ADD, SUB, MUL, DIV, MOD,
   DEC, INC, INV, JMP, INT, JZ,
-  NOP, HLT, ADR, RTI, PUSH, POP,
+  NOP, HLT, ADR, IRET, PUSH, POP,
   CALL, RET
 ];
 export const opcodesKeys = opcodes.map(x => x.name).reduce((a, c, i) => (a[c] = i, a), {});

@@ -104,6 +104,7 @@ export async function refTransform(a, aRef) {
   if (aRef === REFS.RELATIVE_NEGATIVE) a = `-${a}`;
   if (aRef === REFS.REGISTER) a = `R${a}`;
   if (aRef === REFS.ADDRESS) a = `@${a}`;
+  if (aRef === REFS.ADDRESS_AT_REGISTER) a = `@R${a}`;
   return a.toString();
 }
 
@@ -140,7 +141,8 @@ export async function captureSnapshot(a, b) {
 
     snapshot.registers.a = a[0] === 'R' ? registers[+a.slice(1) + R_OFF] : 0;
     snapshot.registers.b = b[0] === 'R' ? registers[+b.slice(1) + R_OFF] : 0;
-    snapshot.bus.a = a[0] === '@' ? bus[+a.slice(1)] : 0;
+
+    snapshot.bus.a = a[0] === '@' ? a[1] === 'R' ? bus[registers[+a.slice(2) + R_OFF]] : bus[+a.slice(1)] : 0;
     snapshot.bus.b = b[0] === '@' ? bus[+b.slice(1)] : 0;
 
     return snapshot;
@@ -159,7 +161,7 @@ export async function diffSnapshot(a, b, snapshotA, snapshotB) {
     }
 
     if (snapshotA.bus.a !== snapshotB.bus.a) {
-      write(chalk.green(`@${(+a.slice(1))}: ${snapshotA.bus.a} -> ${snapshotB.bus.a}`));
+      write(chalk.green(`@${(a[1] === 'R' ? registers[+a.slice(2) + R_OFF] : +a.slice(1))}: ${snapshotA.bus.a} -> ${snapshotB.bus.a}`));
     }
 
     if (snapshotA.bus.b !== snapshotB.bus.b) {

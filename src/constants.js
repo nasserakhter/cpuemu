@@ -16,6 +16,7 @@ export const REFS = {
   RELATIVE_NEGATIVE: 3,
   REGISTER: 4,
   ADDRESS: 5,
+  ADDRESS_AT_REGISTER: 6,
 }
 export const ARG_SIZE = 4; // each arg is 4 bytes + 1 byte for ref/deref
 export const INSTRUCTION_SIZE = OPCODE_SIZE + (2 * (REF_SIZE + ARG_SIZE));

@@ -3,7 +3,7 @@ start:
 
 handler:
   MOV R6, 1128810832
-  RTI
+  IRET
 
 
 main:

@@ -33,9 +33,15 @@ while (offset < file.length) {
 
   if (aRef === REFS.REGISTER) a = `R${a}`;
   if (aRef === REFS.ADDRESS) a = `[${a}]`;
+  if (aRef === REFS.ADDRESS_AT_REGISTER) a = `[R${a}]`;
+  if (aRef === REFS.RELATIVE) a = `+${a}`;
+  if (aRef === REFS.RELATIVE_NEGATIVE) a = `-${a}`;
 
   if (bRef === REFS.REGISTER) b = `R${b}`;
   if (bRef === REFS.ADDRESS) b = `[${b}]`;
+  if (bRef === REFS.ADDRESS_AT_REGISTER) b = `[R${b}]`;
+  if (bRef === REFS.RELATIVE) b = `+${b}`;
+  if (bRef === REFS.RELATIVE_NEGATIVE) b = `-${b}`;
 
   lines.push(
     opcodes[opcode].name
