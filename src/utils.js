@@ -32,7 +32,7 @@ export const hasCliFlag = (flag) =>
 
 export async function compileDrivers() {
   const driverAssemblies = fs.readdirSync('./drivers')
-    .filter(x => x.endsWith(".asm"));
+    .filter(x => x.endsWith("driver.asm"));
 
   const promises = driverAssemblies.map(async (driverAssembly) => {
     const driver = fs.readFileSync('./drivers/' + driverAssembly, 'utf8');
