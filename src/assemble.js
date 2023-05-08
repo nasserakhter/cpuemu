@@ -1,32 +1,77 @@
+import path from "path";
 import { ARG_SIZE, INSTRUCTION_SIZE, MAGIC, MAGIC_SIZE, MAX_32_BIT, OPCODE_SIZE, REFS, REF_SIZE } from "./constants.js";
 import { opcodesKeys } from "./opcodes.js";
 import { hasCliFlag } from "./utils.js";
+import fs from 'fs';
 
-function preproccess(asm) {
-  let lines = asm
-    .replace(/\s*;[^\n]*$/gm, '') // comments
+function stringToLines(str) {
+  return str.replace(/\s*;[^\n]*$/gm, '') // comments
     .trim()
     .split('\n')
     .map(l => l.trim())
     .filter(l => l.length > 0);
+}
 
-  // get external imports
-  // collect constants
+function resolveIncludes(lines, options, parentFile = null) {
+  const includes = [];
+
+  // loop includes first because they will be joined as one file
+  lines = lines.filter((_line) => {
+    if (_line[0] === '%' && _line.startsWith('%include')) {
+      let line = _line.slice(1);
+      const directive = line.slice(0, line.indexOf(' ') >>> 0);
+      line = line.slice(directive.length).trim();
+
+
+      const fileName = (line.endsWith('.asm') ? line : `${line}.asm`).replace(/\\|\//g, path.sep);
+      const fullPath = parentFile ? path.join(path.dirname(parentFile), fileName) : fileName;
+      if (options.included.has(fullPath)) return false;
+
+      const file = fs.readFileSync(fullPath, 'utf-8');
+      const newLines = stringToLines(file);
+
+      options.included.add(fullPath);
+      includes.push(...resolveIncludes(newLines, options, fullPath));
+      return false;
+    }
+    return true;
+  });
+
+  return [...lines, ...includes]; // array of every line of every included file combined
+}
+
+function preproccess(asm) {
+  let lines = stringToLines(asm);
+
+  // run preprocessor directives
   const constants = {};
-  lines = lines.filter((line) => {
-    if (line[0] === '%' && line.startsWith('%define')) {
-      let nameAndValue = line.slice(8);
-      const name = nameAndValue.slice(0, nameAndValue.indexOf(' '));
-      const value = nameAndValue.slice(name.length).trim();
-      constants[name] = value;
+
+  const resolveOptions = { included: new Set() };
+  lines = resolveIncludes(lines, resolveOptions, null);
+
+  // now we included all the files, we can preprocess the rest
+  lines = lines.filter((_line) => {
+    if (_line[0] === '%') {
+      let line = _line.slice(1);
+      const directive = line.slice(0, line.indexOf(' ') >>> 0);
+      line = line.slice(directive.length).trim();
+
+      switch (directive) {
+        case 'define':
+          const name = line.slice(0, line.indexOf(' ') >>> 0);
+          const value = line.slice(name.length).trim();
+          constants[name] = value;
+          break;
+        default:
+          throw new Error(`Unknown preprocessor directive ${directive}`);
+      }
       return false;
     }
     return true;
   });
 
   const evaluateConstant = (expr) => {
-    //console.log(expr);
-    // three secnarios
+    // three scenario's
     // 1: it's a number
     // 2: it's a reference to another constant
     // 3: it's an addition of many constants
@@ -56,7 +101,9 @@ function preproccess(asm) {
   let labelsCount = 0;
   lines = lines.filter((line, i) => {
     if (line.match(/^[a-zA-Z\_]+\:$/gm)) {
-      labels[line.slice(0, -1)] = i - labelsCount + 1;
+      const labelName = line.slice(0, -1);
+      if (labels[labelName]) throw new Error(`DUPLICATE_DECLARATION ${labelName}`);
+      labels[labelName] = i - labelsCount + 1;
       labelsCount++;
       return false;
     }
@@ -70,7 +117,6 @@ function preproccess(asm) {
       if (matches) {
         for (i = 0; i < matches.length; i++) {
           const match = matches[i].slice(1, -1);
-          //console.log(constants[match]);
           if (constants[match]) {
             x = x.replace(`[${match}]`, constants[match]);
           }
@@ -81,7 +127,6 @@ function preproccess(asm) {
 
     if (x.match(/\s[a-zA-Z\_]+$/g)) {
       const [jmp, label] = x.split(' ');
-      console.log(x);
       if (labels[label]) {
         const num = labels[label] - i - 1;
         return `${jmp} ${num > 0 ? '+' : ''}${num}`;
@@ -97,10 +142,7 @@ function preproccess(asm) {
 }
 
 export function assemble(asm, print = true) {
-  if (asm.length === 0) {
-    console.log('Invalid assembly');
-    process.exit(1);
-  }
+  if (asm.length === 0) throw new Error('INTANGIBLE_TARGET');
 
   asm = preproccess(asm);
 

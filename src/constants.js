@@ -54,6 +54,13 @@ export const CHIPSET_OPERATIONS = {
   SHUTDOWN: 1
 };
 
+// BIOS
+// global args size, used by functions in assembly to communicate when registers are not enough/available
+export const GLOBAL_ARGS_SIZE = 4; // 4 bytes
+// contains all the registered memory addresses by programs.
+// (yes, this is unconventional for a BIOS, but it's supposed to be a BIOS/OS hybrid)
+export const MEMORY_MAP_SIZE = 4; // 4 bytes
+
 // GPU
 export const GPU_SIZE = 2; // 2 bytes, one for operation, one for data
 export const GPU_OPERATIONS = {

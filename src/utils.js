@@ -31,19 +31,23 @@ export const hasCliFlag = (flag) =>
   configJson[flag] === true;
 
 export async function compileDrivers() {
+
   const driverAssemblies = fs.readdirSync('./drivers')
     .filter(x => x.endsWith("driver.asm"));
 
+  process.chdir('./drivers');
   const promises = driverAssemblies.map(async (driverAssembly) => {
-    const driver = fs.readFileSync('./drivers/' + driverAssembly, 'utf8');
+    const driver = fs.readFileSync(driverAssembly, 'utf8');
     const driverName = driverAssembly.replace('.asm', '');
     const driverBin = await assemble(driver, false);
-    const driverBinPath = './drivers/' + driverName + '.aex';
+    const driverBinPath = driverName + '.aex';
     fs.writeFileSync(driverBinPath, driverBin);
-    return driverBinPath;
+    return path.join('drivers', driverBinPath);
   });
 
-  return await Promise.all(promises);
+  const result = await Promise.all(promises);
+  process.chdir('..');
+  return result;
 }
 
 export function loadBinary(aex, type = 'BINARY') {

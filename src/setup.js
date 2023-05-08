@@ -17,7 +17,6 @@ export async function setup(aex) {
   globalThis.printReturn = hasCliFlag('print-return-drivers');
   await startupChecks();
   
-  
   // attach RAM into the first part of the bus
   if (hasCliFlag('interrupts')) interrupts();
   if (hasCliFlag('ram')) ram();

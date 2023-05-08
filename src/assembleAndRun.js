@@ -4,8 +4,14 @@ import { hasCliFlag, logBuffer } from './utils.js';
 import { assemble } from './assemble.js';
 
 import { setup } from './setup.js';
+import { generate } from '../drivers/global.js';
 
 export async function assembleAndRun() {
+  // generate the global.asm file
+  // this file contains some needed functions
+  // and resided in the ./drivers folder
+  generate();
+
   const asm = fs.readFileSync('./program.asm', 'utf8');
 
   

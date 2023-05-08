@@ -1,2 +1,4 @@
 /node_modules
 dump.bin
+*.aex
+drivers/global.asm
