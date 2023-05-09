@@ -42,7 +42,8 @@ export const INTERRUPT_TABLE_OFFSET = 0x0;
 export const INTERRUPT_TABLE_SIZE = INTERRUPT_MAX * INTERRUPT_SIZE;
 
 // memory
-export const TOTAL_MEMORY_SIZE = 16; // number of bytes (yes, very small)
+// NOTE: BIOS STUFF BELOW WILL USE PART OF THIS MEMORY SPACE
+export const TOTAL_MEMORY_SIZE = 8 + 16; // number of bytes (yes, very small)
 
 /*
   BUS & DEVICES
@@ -64,7 +65,8 @@ export const MEMORY_MAP_SIZE = 4; // 4 bytes
 // GPU
 export const GPU_SIZE = 2; // 2 bytes, one for operation, one for data
 export const GPU_OPERATIONS = {
-  PRINT_CHAR: 1
+  PRINT_CHAR: 1,
+  PRINT_STRING: 2,
 };
 
 /*

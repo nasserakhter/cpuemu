@@ -53,6 +53,7 @@ export async function assembleAndRun() {
     performance.mark('end');
     performance.measure('Execution Time', 'start', 'end');
     const measure = performance.getEntriesByName('Execution Time')[0];
-    console.log(`${measure.duration.toFixed(4)}ms`);
+    if (printBasicInfo) console.log(`${measure.duration.toFixed(4)}ms`);
+    else console.log();
   }
 }

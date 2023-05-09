@@ -71,7 +71,7 @@ export async function loadDrivers(files) {
   // run each function in sequence
   for (const file of files) {
     const name = path.parse(file).name;
-    console.log("Loading driver: " + name);
+    if (printBasicInfo) console.log("Loading driver: " + name);
     const binary = fs.readFileSync(file);
     const [codeSegStart] = loadBinary(binary, name.toLocaleUpperCase() + ' DRIVER');
     registers[0] = codeSegStart;
@@ -89,14 +89,14 @@ export async function startupChecks() {
   }
 
   if (hasCliFlag('interrupts') && !hasCliFlag('ram')) {
-    console.log(
+    if (printBasicInfo) console.log(
       "Warning, ideally the interrupt table lives in RAM, " +
       "however, RAM is not currently enabled."
     )
   }
 
   if (hasCliFlag('bios') && !hasCliFlag('chipset')) {
-    console.log(
+    if (printBasicInfo) console.log(
       "The chipset component is recommended when using the " +
       "bios component as functionality depends on it"
     );

@@ -3,14 +3,16 @@
   "error-traces": true,
   "## Bus Devices":"",
   "ram": true,
+  "gpu": true,
   "bios": true,
-  "debug": true,
+  "debug": false,
   "chipset": true,
+  "basic-info": false,
   "interrupts": true,
   "unprotect-memory": false,
   "## Drivers Stuffs":"",
   "drivers": true,
   "step-drivers": false,
-  "debug-drivers": true,
-  "print-return-drivers": true
+  "debug-drivers": false,
+  "print-return-drivers": false
 }

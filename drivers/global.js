@@ -1,6 +1,10 @@
 import fs from 'fs';
 import {
+  CHIPSET_OPERATIONS,
+  CHIPSET_SIZE,
   GLOBAL_ARGS_SIZE,
+  GPU_OPERATIONS,
+  GPU_SIZE,
   INTERRUPT_TABLE_OFFSET,
   INTERRUPT_TABLE_SIZE,
   MEMORY_MAP_SIZE,
@@ -35,6 +39,17 @@ export function generate() {
 
     %define RAM_END           RAM_START + RAM_SIZE
     %define MAP_START         RAM_START + GLOBAL_ARGS_SIZE
+    
+    %define CHIPSET_START     RAM_END
+    %define CHIPSET_SIZE      ${CHIPSET_SIZE}
+    %define CHIPSET_END       CHIPSET_START + CHIPSET_SIZE
+    %define CHIPSET_SHUTDOWN  ${CHIPSET_OPERATIONS.SHUTDOWN}
+
+    %define GPU_START         CHIPSET_END
+    %define GPU_SIZE          ${GPU_SIZE}
+    %define GPU_END           GPU_START + GPU_SIZE
+    %define GPU_PRINT_CHAR    ${GPU_OPERATIONS.PRINT_CHAR}
+    %define GPU_PRINT_STRING  ${GPU_OPERATIONS.PRINT_STRING}
 
     %define REAL_MEMORY_START MAP_START + MAP_SIZE
     %define REAL_MEMORY_END   RAM_END

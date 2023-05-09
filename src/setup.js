@@ -1,6 +1,7 @@
 // registers and memory
 
 import { chipset } from "../devices/chipset.js";
+import { gpu } from "../devices/gpu.js";
 import { interrupts } from "../devices/interrupts.js";
 import { ram } from "../devices/ram.js";
 import { stack } from "../devices/stack.js";
@@ -15,18 +16,20 @@ export async function setup(aex) {
   globalThis.debug = hasCliFlag('debug-drivers');
   globalThis.step = hasCliFlag('step-drivers');
   globalThis.printReturn = hasCliFlag('print-return-drivers');
+  globalThis.printBasicInfo = hasCliFlag('basic-info');
   await startupChecks();
   
   // attach RAM into the first part of the bus
   if (hasCliFlag('interrupts')) interrupts();
   if (hasCliFlag('ram')) ram();
   if (hasCliFlag('chipset')) chipset();
+  if (hasCliFlag('gpu')) gpu();
   stack();
   
-  console.log("Compiling and loading drivers...");
+  if (printBasicInfo) console.log("Compiling and loading drivers...");
   const compiledDrivers = await compileDrivers();
   await loadDrivers(compiledDrivers);
-  console.log("Finished loading drivers");
+  if (printBasicInfo) console.log("Finished loading drivers");
 
 
   globalThis.instructionFlags = 0;

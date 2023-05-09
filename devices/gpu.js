@@ -1,12 +1,12 @@
-import { CHIPSET_OPERATIONS, CHIPSET_SIZE } from "../src/constants.js";
+import { GPU_OPERATIONS, GPU_SIZE } from "../src/constants.js";
 import { hasCliFlag } from "../src/utils.js";
 
 //const g_shouldPrint = hasCliFlag('chipset-logs');
 let g_buffer = null;
 
-export async function chipset() {
+export async function gpu() {
   // import code segment into the bus
-  g_buffer = new Uint32Array(CHIPSET_SIZE);
+  g_buffer = new Uint32Array(GPU_SIZE);
   const [start, end] = getOpenRange(g_buffer.length);
 
   const buffer = new Proxy(g_buffer, {
@@ -23,7 +23,7 @@ export async function chipset() {
 
   attachBusDevice(buffer, start, end, {
     print: false,
-    name: 'SYSTEM',
+    name: 'GPU',
     protected: true
   });
 }
@@ -32,8 +32,21 @@ export async function chipset() {
 async function determineActions(prop) {
   if (prop !== '0') return;
   switch (g_buffer[0]) {
-    case CHIPSET_OPERATIONS.SHUTDOWN:
-      console.log('\nShutting down...');
-      process.exit(0);
+    case GPU_OPERATIONS.PRINT_CHAR:
+      process.stdout.write(String.fromCharCode(g_buffer[1]));
+      break;
+    case GPU_OPERATIONS.PRINT_STRING:
+      let addr = g_buffer[1];
+      let shouldPrint = true;
+      while (shouldPrint) {
+        const char = bus[addr];
+        if (char !== 0) {
+          process.stdout.write(String.fromCharCode(char));
+          addr++;
+        } else {
+          shouldPrint = false;
+        }
+      }
+      break;
   }
 }

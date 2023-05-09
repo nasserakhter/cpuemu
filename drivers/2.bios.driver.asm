@@ -1,16 +1,11 @@
 %include bios/errors
 %include bios/malloc
+%include gpu/printchar
+%include gpu/printstr
 
 start:
   ADR handler
   MOV [1], R0
-  HLT
-
-;
-; SECOND FUNCTION
-;
-secondFunc:
-  MOV R6, 1497454937
   HLT
 
 ; Handler for the interrupt
@@ -27,5 +22,7 @@ handler:
   JZ malloc
   ; If R0 is 1 then decrement, and jump to handler 1
   DEC R0
-  JZ secondFunc
+  JZ printchar
+  DEC R0
+  JZ printstr
   JMP error_unknownInterruptSubfunction
