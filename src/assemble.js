@@ -124,6 +124,17 @@ function preproccess(asm) {
       }
     }
 
+    if (x.indexOf('"')) {
+      // we have some kind of string
+      const matches = x.match(/\"[^\"]*\"/g); // get all strings
+      if (matches) {
+        for (i = 0; i < matches.length; i++) {
+          const match = matches[i].slice(1, 2);
+          const char = match.charCodeAt(0);
+          x = x.replace(`"${match}"`, char);
+        }
+      }
+    }
 
     if (x.match(/\s[a-zA-Z\_]+$/g)) {
       const [jmp, label] = x.split(' ');

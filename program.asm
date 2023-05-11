@@ -6,27 +6,27 @@ start:
   MOV R0, 12           ; Get 4 bytes of memory
   CALL malloc          ; Call the func
   MOV R1, R0
-  MOV [R0], 0x48
+  MOV [R0], "H"
   INC R0
-  MOV [R0], 0x45
+  MOV [R0], "E"
   INC R0
-  MOV [R0], 0x4c
+  MOV [R0], "L"
   INC R0
-  MOV [R0], 0x4c
+  MOV [R0], "L"
   INC R0
-  MOV [R0], 0x4f
+  MOV [R0], "O"
   INC R0
-  MOV [R0], 0x20
+  MOV [R0], " "
   INC R0
-  MOV [R0], 0x57
+  MOV [R0], "W"
   INC R0
-  MOV [R0], 0x4f
+  MOV [R0], "O"
   INC R0
-  MOV [R0], 0x52
+  MOV [R0], "R"
   INC R0
-  MOV [R0], 0x4c
+  MOV [R0], "L"
   INC R0
-  MOV [R0], 0x44
+  MOV [R0], "D"
   INC R0
   MOV [R0], 0x00
 
